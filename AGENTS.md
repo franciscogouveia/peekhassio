@@ -17,9 +17,8 @@ GNOME Shell version unless it has been tested and is listed in `metadata.json`.
 
 ## Project Structure
 
-The extension will use TypeScript as its source language and compile to
-JavaScript that GJS can execute. Use the following layout when the project is
-scaffolded:
+The extension uses TypeScript as its source language and compiles to JavaScript
+that GJS can execute. Use the following layout:
 
 - `src/` contains TypeScript source files, including the extension and any
   preferences entry points.
@@ -34,21 +33,23 @@ future release process explicitly requires a tracked artifact.
 
 ## Build, Test, and Development Commands
 
-There are no build, test, lint, package, or install commands yet. When the
-extension is scaffolded, expose the canonical workflows as npm scripts so local
-development and CI use the same entry points:
-
 - `npm ci` installs the exact dependencies recorded in the lockfile.
 - `npm run typecheck` performs a strict TypeScript check without emitting files.
 - `npm run lint` checks source and test style without rewriting files.
+- `npm run coverage` runs tests and enforces line, branch, and function
+  coverage above 80%.
 - `npm run build` compiles TypeScript into readable ESM JavaScript under
   `dist/`.
 - `npm test` runs the automated test suite.
 - `npm run package` creates the extension archive from a clean build.
-- `npm run install` installs the built extension for the current user.
+- `npm run install:extension` installs the built extension for the current
+  user. Do not use npm's reserved `install` lifecycle for this operation.
+- `npm run check` runs all Node-based validation required before a commit.
 
-Do not document a command here until its script exists and succeeds. Before
-submitting a change, run every relevant command and report exactly what ran.
+Before submitting a change, run every relevant command and report exactly what
+ran. Package, install, and live Shell validation require a GNOME 50 development
+host and may be reported as unavailable when the current host lacks that
+tooling.
 
 Test Shell integration in a nested Wayland session. GNOME Shell 49 and later
 use `dbus-run-session gnome-shell --devkit --wayland`. Enable the installed
@@ -130,7 +131,9 @@ Keep each merge request at or below 400 changed lines, measured as additions
 plus deletions across the complete diff, including tests and documentation.
 Keep the change focused on a single purpose. If it would exceed 400 lines,
 split it into independently safe, non-breaking iterations that keep the project
-working and tests passing after every merge.
+working and tests passing after every merge. Generated dependency lockfiles and
+verbatim standard license texts are excluded from the line count, but their
+contents and impact must still be reviewed.
 
 Merge requests must include the purpose, affected extension behavior, supported
 GNOME Shell version, validation commands and results, and any rollout or

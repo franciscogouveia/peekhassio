@@ -1,0 +1,7 @@
+{
+    "uuid": "peekhassio@de-gouveia.eu",
+    "name": "Peekhassio",
+    "description": "Peek at Home Assistant entity states from the GNOME top bar.",
+    "shell-version": ["50"],
+    "url": "http://gitlab.de-gouveia.eu/gnome-extensions/peekhassio"
+}
