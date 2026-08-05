@@ -1,3 +1,7 @@
+/* global imports */
+
+import System from 'system';
+
 import {
     CONFIGURATION_KEY,
     ConfigurationStore,
@@ -7,37 +11,9 @@ import {
     parseConfigurationValue,
     serializeConfiguration,
 } from '../dist/configuration.js';
+import { assertThrowsMatching } from './assertions.mjs';
 
-function test(name, callback) {
-    try {
-        callback();
-    }
-    catch (error) {
-        throw new Error(`${name}: ${error.message}`, { cause: error });
-    }
-}
-
-const assert = {
-    deepEqual(actual, expected) {
-        if (JSON.stringify(actual) !== JSON.stringify(expected))
-            throw new Error('Values are not deeply equal');
-    },
-    equal(actual, expected) {
-        if (actual !== expected)
-            throw new Error(`Expected ${expected}, received ${actual}`);
-    },
-    throws(callback, expected) {
-        try {
-            callback();
-        }
-        catch (error) {
-            if (expected.test(error.message))
-                return;
-            throw error;
-        }
-        throw new Error(`Expected an error matching ${expected}`);
-    },
-};
+const JsUnit = imports.jsUnit;
 
 const validConfiguration = {
     version: 1,
@@ -59,65 +35,59 @@ const validConfiguration = {
     ],
 };
 
-function clone(value) {
-    return JSON.parse(JSON.stringify(value));
-}
+const tests = {
+    testRoundTripsValidOrderedConfiguration() {
+        const serialized = serializeConfiguration(validConfiguration);
+        const parsed = parseConfigurationJson(serialized);
 
-test('round-trips a valid ordered configuration', () => {
-    const serialized = serializeConfiguration(validConfiguration);
-    const parsed = parseConfigurationJson(serialized);
+        JsUnit.assertEquals(JSON.stringify(validConfiguration), JSON.stringify(parsed));
+        JsUnit.assertEquals('cabin', parsed.instances[1].id);
+        JsUnit.assertEquals('sensor.living_room_humidity', parsed.groups[0].entities[1].entityId);
+    },
+    testCreatesEmptyVersionedConfiguration() {
+        const configuration = createDefaultConfiguration();
 
-    assert.deepEqual(parsed, validConfiguration);
-    assert.equal(parsed.instances[1].id, 'cabin');
-    assert.equal(parsed.groups[0].entities[1].entityId, 'sensor.living_room_humidity');
-});
+        JsUnit.assertEquals(JSON.stringify({ version: 1, instances: [], groups: [] }), JSON.stringify(configuration));
+        JsUnit.assertEquals(JSON.stringify(configuration), JSON.stringify(parseConfigurationValue(configuration)));
+    },
+    testLoadsAndSavesThroughSettingsBoundary() {
+        let stored = JSON.stringify(createDefaultConfiguration());
+        const settings = {
+            get_string(key) {
+                JsUnit.assertEquals(CONFIGURATION_KEY, key);
+                return stored;
+            },
+            set_string(key, value) {
+                JsUnit.assertEquals(CONFIGURATION_KEY, key);
+                stored = value;
+                return true;
+            },
+        };
+        const store = new ConfigurationStore(settings);
 
-test('creates an empty versioned configuration', () => {
-    const configuration = createDefaultConfiguration();
+        JsUnit.assertEquals(JSON.stringify(createDefaultConfiguration()), JSON.stringify(store.load()));
+        store.save(validConfiguration);
+        JsUnit.assertEquals(JSON.stringify(validConfiguration), JSON.stringify(store.load()));
+    },
+    testReportsInvalidJsonAndRejectedSettingsUpdates() {
+        assertThrowsMatching(() => parseConfigurationJson('{'), /value must be valid JSON/);
 
-    assert.deepEqual(configuration, { version: 1, instances: [], groups: [] });
-    assert.deepEqual(parseConfigurationValue(configuration), configuration);
-});
+        const store = new ConfigurationStore({
+            get_string: () => '{}',
+            set_string: () => false,
+        });
+        assertThrowsMatching(() => store.save(validConfiguration), /settings backend rejected/);
+    },
+    testBuildsDashboardUrlFromInstanceAndGroup() {
+        const group = validConfiguration.groups[0];
 
-test('loads and saves configuration through the settings boundary', () => {
-    let stored = JSON.stringify(createDefaultConfiguration());
-    const settings = {
-        get_string(key) {
-            assert.equal(key, CONFIGURATION_KEY);
-            return stored;
-        },
-        set_string(key, value) {
-            assert.equal(key, CONFIGURATION_KEY);
-            stored = value;
-            return true;
-        },
-    };
-    const store = new ConfigurationStore(settings);
-
-    assert.deepEqual(store.load(), createDefaultConfiguration());
-    store.save(validConfiguration);
-    assert.deepEqual(store.load(), validConfiguration);
-});
-
-test('reports invalid JSON and rejected settings updates', () => {
-    assert.throws(() => parseConfigurationJson('{'), /value must be valid JSON/);
-
-    const store = new ConfigurationStore({
-        get_string: () => '{}',
-        set_string: () => false,
-    });
-    assert.throws(() => store.save(validConfiguration), /settings backend rejected/);
-});
-
-test('builds a dashboard URL from its instance and group', () => {
-    const group = validConfiguration.groups[0];
-
-    assert.equal(buildDashboardUrl(validConfiguration.instances[0], group), 'https://ha.example.com/lovelace/living-room');
-    assert.equal(
-        buildDashboardUrl({ ...validConfiguration.instances[0], baseUrl: 'https://ha.example.com/' }, group),
-        'https://ha.example.com/lovelace/living-room',
-    );
-});
+        JsUnit.assertEquals('https://ha.example.com/lovelace/living-room', buildDashboardUrl(validConfiguration.instances[0], group));
+        JsUnit.assertEquals(
+            'https://ha.example.com/lovelace/living-room',
+            buildDashboardUrl({ ...validConfiguration.instances[0], baseUrl: 'https://ha.example.com/' }, group),
+        );
+    },
+};
 
 const invalidCases = [
     ['non-object root', null, /root must be an object/],
@@ -146,8 +116,10 @@ const invalidCases = [
     ['blank unit override', { ...validConfiguration, groups: [{ ...validConfiguration.groups[0], entities: [{ entityId: 'sensor.temperature', unitOverride: '' }] }] }, /unitOverride must be a non-empty string/],
 ];
 
-for (const [name, value, expectedError] of invalidCases) {
-    test(`rejects ${name}`, () => {
-        assert.throws(() => parseConfigurationValue(clone(value)), expectedError);
-    });
-}
+invalidCases.forEach(([, value, expectedError], index) => {
+    tests[`testRejectsInvalidCase${index}`] = () => {
+        assertThrowsMatching(() => parseConfigurationValue(value), expectedError);
+    };
+});
+
+System.exit(JsUnit.gjstestRun(tests, () => {}, () => {}));
