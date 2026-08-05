@@ -1,3 +1,5 @@
+import GLib from 'gi://GLib';
+
 export const CONFIGURATION_KEY = 'configuration-json';
 export const CONFIGURATION_VERSION = 1 as const;
 
@@ -41,11 +43,27 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isHttpBaseUrl(value: string): boolean {
-    return /^https?:\/\/[^/?#\s]+(?:\/[^?#\s]*)?$/.test(value);
+    try {
+        const uri = GLib.Uri.parse(value, GLib.UriFlags.NONE);
+        return ['http', 'https'].includes(uri.get_scheme())
+            && uri.get_host() !== null && uri.get_query() === null && uri.get_fragment() === null;
+    }
+    catch {
+        return false;
+    }
 }
 
 function isDashboardPath(value: string): boolean {
-    return /^\/(?!\/)[^\s]*$/.test(value);
+    if (!value.startsWith('/') || value.startsWith('//'))
+        return false;
+
+    try {
+        GLib.Uri.resolve_relative('https://example.invalid', value, GLib.UriFlags.NONE);
+        return true;
+    }
+    catch {
+        return false;
+    }
 }
 
 function requireText(value: unknown, path: string): asserts value is string {
@@ -118,7 +136,7 @@ export function createDefaultConfiguration(): ConfigurationV1 {
 export function buildDashboardUrl(instance: InstanceConfiguration, group: GroupConfiguration): string {
     invariant(isHttpBaseUrl(instance.baseUrl), 'instance baseUrl must be an HTTP(S) base URL without a query or fragment');
     invariant(isDashboardPath(group.dashboardPath), 'group dashboardPath must start with one slash');
-    return `${instance.baseUrl.replace(/\/+$/, '')}${group.dashboardPath}`;
+    return GLib.Uri.resolve_relative(instance.baseUrl, group.dashboardPath, GLib.UriFlags.NONE);
 }
 
 export class ConfigurationStore {
