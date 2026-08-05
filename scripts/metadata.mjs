@@ -17,6 +17,10 @@ export function validateMetadata(metadata) {
         errors.push('uuid must be peekhassio@de-gouveia.eu');
     }
 
+    if (metadata['settings-schema'] !== 'org.gnome.shell.extensions.peekhassio') {
+        errors.push('settings-schema must be org.gnome.shell.extensions.peekhassio');
+    }
+
     if (!Array.isArray(metadata['shell-version'])
         || metadata['shell-version'].length !== 1
         || metadata['shell-version'][0] !== '50') {

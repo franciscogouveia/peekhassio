@@ -14,7 +14,8 @@ Assistant), while sounding like “Picasso.”
 ## Planned functionality
 
 Peekhassio will organize selected Home Assistant entities into compact,
-pill-like room groups on the top bar:
+user-defined groups on the top bar. A group can represent a room or any other
+collection that is useful to the user:
 
 ```text
 [Bathroom 27°C 50%] [Living room 25°C 45%] [Bedroom 26°C 46%]
@@ -22,15 +23,16 @@ pill-like room groups on the top bar:
 
 The first usable version will provide:
 
-- User-defined rooms containing any Home Assistant entity states.
-- Compact room pills showing the room name followed by values and units.
+- User-defined groups containing any Home Assistant entity states.
+- Compact group pills showing the group name followed by values and units.
 - Per-entity unit overrides. When no override is configured, Peekhassio uses
   the unit reported by Home Assistant.
-- Manual ordering of rooms through the extension preferences.
-- Support for multiple Home Assistant instances. Each room belongs to one
-  configured instance, while the top bar may show rooms from several instances.
-- A configurable Home Assistant dashboard or view URL for each room. Clicking
-  a room pill opens that URL.
+- Manual ordering of groups through the extension preferences.
+- Support for multiple Home Assistant instances. Each group belongs to one
+  configured instance, while the top bar may show groups from several instances.
+- A configurable dashboard or view path for each group. Peekhassio resolves the
+  path relative to the group's Home Assistant instance URL and opens it when the
+  user clicks the group pill.
 - Real-time values delivered through Home Assistant's authenticated
   [WebSocket API](https://developers.home-assistant.io/docs/api/websocket/).
 - Automatic reconnection when an instance becomes unavailable. During an
@@ -38,8 +40,8 @@ The first usable version will provide:
 
 ## Configuration and security
 
-Peekhassio's preferences will manage Home Assistant instances, rooms, entity
-selection, unit overrides, display order, and room URLs. Each instance will
+Peekhassio's preferences will manage Home Assistant instances, groups, entity
+selection, unit overrides, display order, and group dashboard paths. Each instance will
 authenticate with a long-lived access token stored through GNOME Secret Service
 rather than in plaintext configuration.
 

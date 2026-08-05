@@ -32,6 +32,7 @@ test('rejects invalid identity and compatibility metadata', () => {
         'description must be a non-empty string',
         'url must be a non-empty string',
         'uuid must be peekhassio@de-gouveia.eu',
+        'settings-schema must be org.gnome.shell.extensions.peekhassio',
         'shell-version must contain only GNOME Shell 50',
     ]);
     assert.throws(() => assertMetadata(invalidMetadata), /Invalid metadata/);
