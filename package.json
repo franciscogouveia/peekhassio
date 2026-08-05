@@ -1,0 +1,32 @@
+{
+    "name": "peekhassio",
+    "version": "0.0.0",
+    "description": "Peek at Home Assistant entity states from the GNOME top bar.",
+    "type": "module",
+    "private": true,
+    "license": "GPL-3.0-or-later",
+    "engines": {
+        "node": ">=24 <25",
+        "npm": ">=11"
+    },
+    "scripts": {
+        "clean": "node scripts/clean.mjs",
+        "typecheck": "tsc --noEmit",
+        "lint": "eslint .",
+        "test": "node --test tests/*.test.mjs",
+        "coverage": "node --test --experimental-test-coverage --test-coverage-lines=81 --test-coverage-branches=81 --test-coverage-functions=81 tests/*.test.mjs",
+        "build": "npm run clean && tsc && node scripts/copy-metadata.mjs",
+        "package": "npm run build && gnome-extensions pack --force --out-dir . dist",
+        "install:extension": "npm run package && gnome-extensions install --force ./peekhassio@de-gouveia.eu.shell-extension.zip",
+        "check": "npm run typecheck && npm run lint && npm run coverage && npm run build"
+    },
+    "devDependencies": {
+        "@eslint/js": "10.0.1",
+        "@girs/gjs": "4.1.0",
+        "@girs/gnome-shell": "50.0.4",
+        "@stylistic/eslint-plugin": "5.10.0",
+        "eslint": "10.8.0",
+        "typescript": "6.0.3",
+        "typescript-eslint": "8.66.0"
+    }
+}

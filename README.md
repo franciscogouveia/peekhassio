@@ -45,9 +45,31 @@ rather than in plaintext configuration.
 
 ## Technical direction
 
-Peekhassio initially targets GNOME Shell 50. The extension will be written in
-strict TypeScript and compiled to readable ES module JavaScript for GJS.
+Peekhassio initially targets GNOME Shell 50. The extension is written in strict
+TypeScript and compiled to readable ES module JavaScript for GJS.
 
-The project has not been bootstrapped yet, so build, test, installation, and
-development instructions will be added once those workflows exist and have
-been verified.
+## Development
+
+The local quality and build workflows require Node.js 24 and npm 11. Packaging,
+installation, and live testing additionally require GNOME Shell 50 and its
+`gnome-extensions` command.
+
+```sh
+npm ci
+npm run check
+```
+
+`npm run check` runs strict type-checking, linting, tests with coverage above
+80%, and a clean build. Generated extension files are written to `dist/`.
+
+On a GNOME development machine, package and install the extension with:
+
+```sh
+npm run package
+npm run install:extension
+```
+
+The package and install commands cannot be validated on a host without GNOME
+Shell tooling.
+
+Peekhassio is licensed under [GPL-3.0-or-later](LICENSE).
