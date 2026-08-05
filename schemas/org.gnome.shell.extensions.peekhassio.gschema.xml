@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.peekhassio" path="/org/gnome/shell/extensions/peekhassio/">
+    <key name="configuration-json" type="s">
+      <default>'{"version":1,"instances":[],"groups":[]}'</default>
+      <summary>Peekhassio configuration</summary>
+      <description>Versioned non-secret configuration shared by the preferences and Shell processes.</description>
+    </key>
+  </schema>
+</schemalist>
