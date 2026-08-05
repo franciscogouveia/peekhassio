@@ -1,66 +1,82 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title description">
   <title id="title">Peekhassio logo</title>
-  <desc id="description">A gnome with a curled mustache and goggles containing Home Assistant symbols.</desc>
+  <desc id="description">A simplified cubist gnome wearing goggles with Home Assistant symbols.</desc>
 
   <defs>
-    <linearGradient id="hat" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#ff4b3e"/>
-      <stop offset="1" stop-color="#c91f2b"/>
-    </linearGradient>
-    <linearGradient id="skin" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffd0ac"/>
-      <stop offset="1" stop-color="#ee916c"/>
-    </linearGradient>
     <symbol id="home-assistant" viewBox="0 0 64 64">
       <path fill="#fff" d="M7 29 32 7l25 22v27H7Z"/>
-      <path fill="none" stroke="#18b7df" stroke-linecap="round" stroke-linejoin="round" stroke-width="5"
+      <path fill="none" stroke="#10a9d1" stroke-linecap="round" stroke-linejoin="round" stroke-width="5"
         d="M32 19v31m0-15-10-8m10 17 11-10"/>
-      <circle cx="32" cy="18" r="4" fill="#18b7df"/>
-      <circle cx="20" cy="26" r="4" fill="#18b7df"/>
-      <circle cx="45" cy="32" r="4" fill="#18b7df"/>
+      <circle cx="32" cy="18" r="4" fill="#10a9d1"/>
+      <circle cx="20" cy="26" r="4" fill="#10a9d1"/>
+      <circle cx="45" cy="32" r="4" fill="#10a9d1"/>
     </symbol>
+    <clipPath id="face-clip">
+      <path d="M129 206 253 166 382 219 370 366 259 415 137 351Z"/>
+    </clipPath>
   </defs>
 
-  <rect width="512" height="512" rx="72" fill="#faf7ef"/>
+  <rect width="512" height="512" rx="72" fill="#f4edda"/>
+  <path fill="#e6c99a" d="m34 124 104-78 73 68-91 80Zm357-67 91 66-58 95-92-90Z" opacity=".55"/>
 
-  <!-- Ears and face -->
-  <path fill="url(#skin)" stroke="#172532" stroke-linejoin="round" stroke-width="10"
-    d="M135 251c-30-25-63-10-57 30 5 35 29 60 61 60l15-48Z"/>
-  <path fill="url(#skin)" stroke="#172532" stroke-linejoin="round" stroke-width="10"
-    d="M377 251c30-25 63-10 57 30-5 35-29 60-61 60l-15-48Z"/>
-  <path fill="#d36d58" d="M99 272c18 7 30 21 38 42-19-10-31-24-38-42Zm314 0c-18 7-30 21-38 42 19-10 31-24 38-42Z"/>
-  <ellipse cx="256" cy="270" rx="132" ry="111" fill="url(#skin)" stroke="#172532" stroke-width="11"/>
+  <!-- Pointed hat assembled from angular color planes -->
+  <path fill="#172b4d" stroke="#142331" stroke-linejoin="round" stroke-width="11"
+    d="m104 220 53-78 30-83 80-42 31 92 85 111Z"/>
+  <path fill="#e53d35" d="m118 210 49-71 23-65 66-43-12 135Z"/>
+  <path fill="#f4a62a" d="m190 74 66-43 28 84-40 51Z"/>
+  <path fill="#bf2f51" d="m244 166 40-51 82 95-104 10Z"/>
+  <path fill="#ef5b3f" stroke="#142331" stroke-linejoin="round" stroke-width="9"
+    d="m95 207 149-41 174 50-43 56-248-5Z"/>
+  <path fill="#f4a62a" d="m112 216 132-37 5 74-122 2Z"/>
+  <path fill="#c82d45" d="m249 179 151 44-32 35-119-5Z"/>
 
-  <!-- Hat -->
-  <path fill="url(#hat)" stroke="#172532" stroke-linejoin="round" stroke-width="12"
-    d="M112 220c5-43 28-77 61-99 15-48 55-83 112-102-12 19-11 37 4 55 50 31 84 79 101 146-81-32-190-32-278 0Z"/>
-  <path fill="#ff6257" d="M170 145c24-50 57-83 100-103-29 33-52 70-69 111Z" opacity=".75"/>
-  <path fill="#b41625" d="M288 79c39 27 68 66 84 118-32-17-68-28-106-34 28-12 35-40 22-84Z" opacity=".65"/>
-  <path fill="url(#hat)" stroke="#172532" stroke-linejoin="round" stroke-width="11"
-    d="M99 216c82-44 230-44 314 0 13 22 13 45-1 67-96-36-216-36-312 0-14-22-14-45-1-67Z"/>
-  <path fill="none" stroke="#ff7167" stroke-linecap="round" stroke-width="9" d="M126 227c57-25 118-34 183-27" opacity=".7"/>
+  <!-- Asymmetric ears -->
+  <path fill="#e77e62" stroke="#142331" stroke-linejoin="round" stroke-width="9"
+    d="m137 250-48-23-18 68 64 50Z"/>
+  <path fill="#f4a681" stroke="#142331" stroke-linejoin="round" stroke-width="9"
+    d="m375 244 54 20-12 74-49 7Z"/>
+  <path fill="#702c45" d="m95 253 30 17-8 44Z"/>
+  <path fill="#e84d40" d="m401 274 13 12-27 31Z"/>
 
-  <!-- Beard -->
-  <path fill="#fffdf8" stroke="#172532" stroke-linejoin="round" stroke-width="11"
-    d="M126 310c5 21 2 42-10 62l23-3c-7 25-1 48 17 68l17-11c7 25 23 43 47 55l9-16c9 19 18 30 27 35 9-5 18-16 27-35l9 16c24-12 40-30 47-55l17 11c18-20 24-43 17-68l23 3c-12-20-15-41-10-62-31 25-70 38-120 38s-89-13-120-38Z"/>
-  <path fill="none" stroke="#d9d5ce" stroke-linecap="round" stroke-width="8"
-    d="M178 392c8 29 23 48 45 58m111-58c-8 29-23 48-45 58M256 381v74"/>
+  <!-- Geometric face -->
+  <path fill="#ed9473" stroke="#142331" stroke-linejoin="round" stroke-width="11"
+    d="M129 206 253 166 382 219 370 366 259 415 137 351Z"/>
+  <g clip-path="url(#face-clip)">
+    <path fill="#f5bc83" d="m118 194 136-36 4 260-130-64Z"/>
+    <path fill="#df655d" d="m254 158 139 54-55 78-80 128Z"/>
+    <path fill="#f2a73b" d="m258 418 80-128 48 87Z"/>
+    <path fill="#8e3154" d="m128 354 130 64-84 29Z"/>
+    <path fill="#f9d08e" d="m128 207 126-49-72 132Z" opacity=".75"/>
+  </g>
 
-  <!-- Goggles -->
-  <path fill="none" stroke="#46515b" stroke-width="18" d="M218 270c14-13 62-13 76 0"/>
-  <path fill="none" stroke="#172532" stroke-width="10" d="M104 273h25m279 0h-25"/>
-  <circle cx="176" cy="270" r="70" fill="#66717b" stroke="#172532" stroke-width="10"/>
-  <circle cx="336" cy="270" r="70" fill="#66717b" stroke="#172532" stroke-width="10"/>
-  <circle cx="176" cy="270" r="55" fill="#18b7df" stroke="#172532" stroke-width="7"/>
-  <circle cx="336" cy="270" r="55" fill="#18b7df" stroke="#172532" stroke-width="7"/>
-  <use href="#home-assistant" x="143" y="237" width="66" height="66"/>
-  <use href="#home-assistant" x="303" y="237" width="66" height="66"/>
-  <path fill="none" stroke="#7be1f5" stroke-linecap="round" stroke-width="7" d="M146 243c13-17 31-25 51-23m109 23c13-17 31-25 51-23" opacity=".8"/>
+  <!-- Deliberately mismatched cubist goggles -->
+  <path fill="none" stroke="#142331" stroke-width="18" d="M216 266 257 247 298 270"/>
+  <path fill="none" stroke="#142331" stroke-width="10" d="m91 270 38 5m254-4 36-8"/>
+  <path fill="#536b78" stroke="#142331" stroke-linejoin="round" stroke-width="10"
+    d="m112 218 102-11 31 82-67 66-79-35Z"/>
+  <path fill="#14b8df" stroke="#142331" stroke-linejoin="round" stroke-width="7"
+    d="m126 232 78-8 23 62-52 51-59-27Z"/>
+  <path fill="#536b78" stroke="#142331" stroke-linejoin="round" stroke-width="10"
+    d="m290 214 94 16 29 76-69 58-72-49Z"/>
+  <path fill="#14b8df" stroke="#142331" stroke-linejoin="round" stroke-width="7"
+    d="m304 232 67 11 23 58-51 44-53-37Z"/>
+  <use href="#home-assistant" x="139" y="244" width="65" height="65"/>
+  <use href="#home-assistant" x="310" y="251" width="65" height="65"/>
+  <path fill="none" stroke="#82e5f3" stroke-linecap="square" stroke-width="7"
+    d="m134 244 50-6m131 8 43 7" opacity=".8"/>
 
-  <!-- Nose and mustache -->
-  <ellipse cx="256" cy="326" rx="39" ry="34" fill="url(#skin)" stroke="#172532" stroke-width="9"/>
-  <path fill="#172532" d="M254 350c-24-20-43-20-61-3-15 14-27 23-41 22 13-7 17-17 12-29-7-17-29-18-38-4-9 13-5 30 8 39 28 19 67 12 94-10 12-10 21-12 28-5Z"/>
-  <path fill="#172532" d="M258 350c24-20 43-20 61-3 15 14 27 23 41 22-13-7-17-17-12-29 7-17 29-18 38-4 9 13 5 30-8 39-28 19-67 12-94-10-12-10-21-12-28-5Z"/>
-  <path fill="none" stroke="#46515b" stroke-linecap="round" stroke-width="6" d="M223 357c-22 17-48 24-71 16m137-16c22 17 48 24 71 16" opacity=".65"/>
+  <!-- Angular nose and small mouth; intentionally no mustache -->
+  <path fill="#f6b184" stroke="#142331" stroke-linejoin="round" stroke-width="8"
+    d="m256 265 39 77-42 31-29-33Z"/>
+  <path fill="#c94d4d" stroke="#142331" stroke-linejoin="round" stroke-width="7"
+    d="m228 382 35-13 31 17-38 18Z"/>
+
+  <!-- Faceted white beard -->
+  <path fill="#fffdf7" stroke="#142331" stroke-linejoin="round" stroke-width="11"
+    d="m122 337 47 29 34 41 53-3 40 7 47-49 40-18-18 85-42-8-20 52-42-17-35 43-31-48-45 14-14-49-39 1Z"/>
+  <path fill="#ded8ca" d="m169 366 34 41-7 58-30-47Z"/>
+  <path fill="#f1b536" d="m203 407 53-3-30 95Z" opacity=".28"/>
+  <path fill="#d6d0c4" d="m256 404 40 7-35 45Z"/>
+  <path fill="#ed6d52" d="m296 411 47-49-20 59Z" opacity=".28"/>
 </svg>
