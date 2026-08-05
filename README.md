@@ -61,6 +61,8 @@ npm run check
 
 `npm run check` runs strict type-checking, linting, tests with coverage above
 80%, and a clean build. Generated extension files are written to `dist/`.
+GitLab CI runs the same quality gate for merge requests and `main`, reports the
+line coverage, and retains the generated `dist/` directory for one week.
 
 On a GNOME development machine, package and install the extension with:
 
