@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title description">
+  <title id="title">Peekhassio logo</title>
+  <desc id="description">A gnome with a curled mustache and goggles containing Home Assistant symbols.</desc>
+
+  <defs>
+    <linearGradient id="hat" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff4b3e"/>
+      <stop offset="1" stop-color="#c91f2b"/>
+    </linearGradient>
+    <linearGradient id="skin" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd0ac"/>
+      <stop offset="1" stop-color="#ee916c"/>
+    </linearGradient>
+    <symbol id="home-assistant" viewBox="0 0 64 64">
+      <path fill="#fff" d="M7 29 32 7l25 22v27H7Z"/>
+      <path fill="none" stroke="#18b7df" stroke-linecap="round" stroke-linejoin="round" stroke-width="5"
+        d="M32 19v31m0-15-10-8m10 17 11-10"/>
+      <circle cx="32" cy="18" r="4" fill="#18b7df"/>
+      <circle cx="20" cy="26" r="4" fill="#18b7df"/>
+      <circle cx="45" cy="32" r="4" fill="#18b7df"/>
+    </symbol>
+  </defs>
+
+  <rect width="512" height="512" rx="72" fill="#faf7ef"/>
+
+  <!-- Ears and face -->
+  <path fill="url(#skin)" stroke="#172532" stroke-linejoin="round" stroke-width="10"
+    d="M135 251c-30-25-63-10-57 30 5 35 29 60 61 60l15-48Z"/>
+  <path fill="url(#skin)" stroke="#172532" stroke-linejoin="round" stroke-width="10"
+    d="M377 251c30-25 63-10 57 30-5 35-29 60-61 60l-15-48Z"/>
+  <path fill="#d36d58" d="M99 272c18 7 30 21 38 42-19-10-31-24-38-42Zm314 0c-18 7-30 21-38 42 19-10 31-24 38-42Z"/>
+  <ellipse cx="256" cy="270" rx="132" ry="111" fill="url(#skin)" stroke="#172532" stroke-width="11"/>
+
+  <!-- Hat -->
+  <path fill="url(#hat)" stroke="#172532" stroke-linejoin="round" stroke-width="12"
+    d="M112 220c5-43 28-77 61-99 15-48 55-83 112-102-12 19-11 37 4 55 50 31 84 79 101 146-81-32-190-32-278 0Z"/>
+  <path fill="#ff6257" d="M170 145c24-50 57-83 100-103-29 33-52 70-69 111Z" opacity=".75"/>
+  <path fill="#b41625" d="M288 79c39 27 68 66 84 118-32-17-68-28-106-34 28-12 35-40 22-84Z" opacity=".65"/>
+  <path fill="url(#hat)" stroke="#172532" stroke-linejoin="round" stroke-width="11"
+    d="M99 216c82-44 230-44 314 0 13 22 13 45-1 67-96-36-216-36-312 0-14-22-14-45-1-67Z"/>
+  <path fill="none" stroke="#ff7167" stroke-linecap="round" stroke-width="9" d="M126 227c57-25 118-34 183-27" opacity=".7"/>
+
+  <!-- Beard -->
+  <path fill="#fffdf8" stroke="#172532" stroke-linejoin="round" stroke-width="11"
+    d="M126 310c5 21 2 42-10 62l23-3c-7 25-1 48 17 68l17-11c7 25 23 43 47 55l9-16c9 19 18 30 27 35 9-5 18-16 27-35l9 16c24-12 40-30 47-55l17 11c18-20 24-43 17-68l23 3c-12-20-15-41-10-62-31 25-70 38-120 38s-89-13-120-38Z"/>
+  <path fill="none" stroke="#d9d5ce" stroke-linecap="round" stroke-width="8"
+    d="M178 392c8 29 23 48 45 58m111-58c-8 29-23 48-45 58M256 381v74"/>
+
+  <!-- Goggles -->
+  <path fill="none" stroke="#46515b" stroke-width="18" d="M218 270c14-13 62-13 76 0"/>
+  <path fill="none" stroke="#172532" stroke-width="10" d="M104 273h25m279 0h-25"/>
+  <circle cx="176" cy="270" r="70" fill="#66717b" stroke="#172532" stroke-width="10"/>
+  <circle cx="336" cy="270" r="70" fill="#66717b" stroke="#172532" stroke-width="10"/>
+  <circle cx="176" cy="270" r="55" fill="#18b7df" stroke="#172532" stroke-width="7"/>
+  <circle cx="336" cy="270" r="55" fill="#18b7df" stroke="#172532" stroke-width="7"/>
+  <use href="#home-assistant" x="143" y="237" width="66" height="66"/>
+  <use href="#home-assistant" x="303" y="237" width="66" height="66"/>
+  <path fill="none" stroke="#7be1f5" stroke-linecap="round" stroke-width="7" d="M146 243c13-17 31-25 51-23m109 23c13-17 31-25 51-23" opacity=".8"/>
+
+  <!-- Nose and mustache -->
+  <ellipse cx="256" cy="326" rx="39" ry="34" fill="url(#skin)" stroke="#172532" stroke-width="9"/>
+  <path fill="#172532" d="M254 350c-24-20-43-20-61-3-15 14-27 23-41 22 13-7 17-17 12-29-7-17-29-18-38-4-9 13-5 30 8 39 28 19 67 12 94-10 12-10 21-12 28-5Z"/>
+  <path fill="#172532" d="M258 350c24-20 43-20 61-3 15 14 27 23 41 22-13-7-17-17-12-29 7-17 29-18 38-4 9 13 5 30-8 39-28 19-67 12-94-10-12-10-21-12-28-5Z"/>
+  <path fill="none" stroke="#46515b" stroke-linecap="round" stroke-width="6" d="M223 357c-22 17-48 24-71 16m137-16c22 17 48 24 71 16" opacity=".65"/>
+</svg>
