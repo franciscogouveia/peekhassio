@@ -77,7 +77,7 @@ export function parseConfigurationValue(value: unknown): ConfigurationV1 {
     invariant(Array.isArray(value.groups), 'groups must be an array');
 
     const instanceIds = new Set<string>();
-    for (const [index, instance] of value.instances.entries()) {
+    value.instances.forEach((instance, index) => {
         invariant(isRecord(instance), `instances[${index}] must be an object`);
         requireText(instance.id, `instances[${index}].id`);
         requireText(instance.name, `instances[${index}].name`);
@@ -86,10 +86,10 @@ export function parseConfigurationValue(value: unknown): ConfigurationV1 {
         invariant(!('token' in instance), `instances[${index}] must not store a token`);
         invariant(!instanceIds.has(instance.id), `instance id ${instance.id} must be unique`);
         instanceIds.add(instance.id);
-    }
+    });
 
     const groupIds = new Set<string>();
-    for (const [groupIndex, group] of value.groups.entries()) {
+    value.groups.forEach((group, groupIndex) => {
         invariant(isRecord(group), `groups[${groupIndex}] must be an object`);
         requireText(group.id, `groups[${groupIndex}].id`);
         requireText(group.instanceId, `groups[${groupIndex}].instanceId`);
@@ -101,15 +101,15 @@ export function parseConfigurationValue(value: unknown): ConfigurationV1 {
         invariant(Array.isArray(group.entities), `groups[${groupIndex}].entities must be an array`);
         groupIds.add(group.id);
 
-        for (const [entityIndex, entity] of group.entities.entries()) {
+        group.entities.forEach((entity, entityIndex) => {
             const path = `groups[${groupIndex}].entities[${entityIndex}]`;
             invariant(isRecord(entity), `${path} must be an object`);
             requireText(entity.entityId, `${path}.entityId`);
             invariant(/^[a-z0-9_]+\.[a-z0-9_]+$/.test(entity.entityId), `${path}.entityId must use domain.object_id`);
             if ('unitOverride' in entity)
                 requireText(entity.unitOverride, `${path}.unitOverride`);
-        }
-    }
+        });
+    });
 
     return value as unknown as ConfigurationV1;
 }

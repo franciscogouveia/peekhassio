@@ -1,6 +1,3 @@
-import assert from 'node:assert/strict';
-import test from 'node:test';
-
 import {
     CONFIGURATION_KEY,
     ConfigurationStore,
@@ -9,7 +6,38 @@ import {
     parseConfigurationJson,
     parseConfigurationValue,
     serializeConfiguration,
-} from '../src/configuration.ts';
+} from '../dist/configuration.js';
+
+function test(name, callback) {
+    try {
+        callback();
+    }
+    catch (error) {
+        throw new Error(`${name}: ${error.message}`, { cause: error });
+    }
+}
+
+const assert = {
+    deepEqual(actual, expected) {
+        if (JSON.stringify(actual) !== JSON.stringify(expected))
+            throw new Error('Values are not deeply equal');
+    },
+    equal(actual, expected) {
+        if (actual !== expected)
+            throw new Error(`Expected ${expected}, received ${actual}`);
+    },
+    throws(callback, expected) {
+        try {
+            callback();
+        }
+        catch (error) {
+            if (expected.test(error.message))
+                return;
+            throw error;
+        }
+        throw new Error(`Expected an error matching ${expected}`);
+    },
+};
 
 const validConfiguration = {
     version: 1,
@@ -97,16 +125,20 @@ const invalidCases = [
     ['non-array instances', { ...validConfiguration, instances: {} }, /instances must be an array/],
     ['non-array groups', { ...validConfiguration, groups: {} }, /groups must be an array/],
     ['non-object instance', { ...validConfiguration, instances: ['home'] }, /instances\[0\] must be an object/],
+    ['non-string instance ID', { ...validConfiguration, instances: [{ id: 7, name: 'Home', baseUrl: 'https://ha.example.com' }] }, /id must be a non-empty string/],
     ['blank instance name', { ...validConfiguration, instances: [{ id: 'home', name: '', baseUrl: 'https://ha.example.com' }] }, /name must be a non-empty string/],
     ['invalid instance URL', { ...validConfiguration, instances: [{ id: 'home', name: 'Home', baseUrl: 'not a url' }] }, /baseUrl must be an HTTP/],
     ['unsupported URL protocol', { ...validConfiguration, instances: [{ id: 'home', name: 'Home', baseUrl: 'ftp://ha.example.com' }] }, /baseUrl must be an HTTP/],
     ['base URL query', { ...validConfiguration, instances: [{ id: 'home', name: 'Home', baseUrl: 'https://ha.example.com?redirect=1' }] }, /baseUrl must be an HTTP/],
+    ['base URL fragment', { ...validConfiguration, instances: [{ id: 'home', name: 'Home', baseUrl: 'https://ha.example.com#status' }] }, /baseUrl must be an HTTP/],
+    ['base URL without host', { ...validConfiguration, instances: [{ id: 'home', name: 'Home', baseUrl: 'http:/dashboard' }] }, /baseUrl must be an HTTP/],
     ['stored token', { ...validConfiguration, instances: [{ ...validConfiguration.instances[0], token: 'secret' }] }, /must not store a token/],
     ['duplicate instance', { ...validConfiguration, instances: [validConfiguration.instances[0], validConfiguration.instances[0]] }, /instance id home must be unique/],
     ['non-object group', { ...validConfiguration, groups: ['living-room'] }, /groups\[0\] must be an object/],
     ['unknown instance', { ...validConfiguration, groups: [{ ...validConfiguration.groups[0], instanceId: 'missing' }] }, /must reference an instance/],
     ['dashboard URL instead of path', { ...validConfiguration, groups: [{ ...validConfiguration.groups[0], dashboardPath: 'https://ha.example.com/dashboard' }] }, /dashboardPath must start with one slash/],
     ['protocol-relative dashboard path', { ...validConfiguration, groups: [{ ...validConfiguration.groups[0], dashboardPath: '//other.example.com/dashboard' }] }, /dashboardPath must start with one slash/],
+    ['malformed dashboard path', { ...validConfiguration, groups: [{ ...validConfiguration.groups[0], dashboardPath: '/bad%ZZ' }] }, /dashboardPath must start with one slash/],
     ['duplicate group', { ...validConfiguration, groups: [validConfiguration.groups[0], validConfiguration.groups[0]] }, /group id living-room must be unique/],
     ['non-array entities', { ...validConfiguration, groups: [{ ...validConfiguration.groups[0], entities: {} }] }, /entities must be an array/],
     ['non-object entity', { ...validConfiguration, groups: [{ ...validConfiguration.groups[0], entities: [null] }] }, /entities\[0\] must be an object/],

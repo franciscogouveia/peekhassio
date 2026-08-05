@@ -1,6 +1,7 @@
 import { rm } from 'node:fs/promises';
 import { URL, fileURLToPath } from 'node:url';
 
-const distPath = fileURLToPath(new URL('../dist/', import.meta.url));
+const generatedPaths = ['../coverage/', '../dist/']
+    .map(path => fileURLToPath(new URL(path, import.meta.url)));
 
-await rm(distPath, { recursive: true, force: true });
+await Promise.all(generatedPaths.map(path => rm(path, { recursive: true, force: true })));

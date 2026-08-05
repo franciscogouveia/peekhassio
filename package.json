@@ -13,13 +13,16 @@
         "clean": "node scripts/clean.mjs",
         "typecheck": "tsc --noEmit",
         "lint": "eslint .",
-        "test": "node --experimental-loader=./tests/support/gjs-loader.mjs --test tests/*.test.mjs",
-        "test:gjs": "gjs -m tests/configuration.gjs.mjs",
-        "coverage": "node --experimental-loader=./tests/support/gjs-loader.mjs --test --experimental-test-coverage --test-coverage-lines=81 --test-coverage-branches=81 --test-coverage-functions=81 tests/*.test.mjs",
+        "test": "npm run build && npm run test:node && npm run test:gjs",
+        "test:node": "node --test tests/metadata.test.mjs",
+        "test:gjs": "gjs -m tests/configuration.test.mjs",
+        "coverage": "npm run coverage:node && npm run build && npm run coverage:gjs",
+        "coverage:node": "node --test --experimental-test-coverage --test-coverage-lines=81 --test-coverage-branches=81 --test-coverage-functions=81 tests/metadata.test.mjs",
+        "coverage:gjs": "gjs -C file://$PWD/dist/configuration.js --coverage-output=coverage/gjs -m tests/configuration.test.mjs && node scripts/check-gjs-coverage.mjs",
         "build": "npm run clean && tsc && node scripts/copy-metadata.mjs",
         "package": "npm run build && gnome-extensions pack --force --out-dir . --schema=schemas/org.gnome.shell.extensions.peekhassio.gschema.xml dist",
         "install:extension": "npm run package && gnome-extensions install --force ./peekhassio@de-gouveia.eu.shell-extension.zip",
-        "check": "npm run typecheck && npm run lint && npm run coverage && npm run build && npm run test:gjs"
+        "check": "npm run typecheck && npm run lint && npm run coverage"
     },
     "devDependencies": {
         "@eslint/js": "10.0.1",
