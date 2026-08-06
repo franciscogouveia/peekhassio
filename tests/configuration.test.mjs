@@ -8,16 +8,19 @@ import {
     ConfigurationStore,
     buildDashboardUrl,
     createDefaultConfiguration,
+    moveEntity,
     moveGroup,
     parseConfigurationJson,
     parseConfigurationValue,
     removeInstance,
     removeGroup,
+    removeEntity,
     serializeConfiguration,
     upsertInstance,
     upsertGroup,
+    upsertEntity,
 } from '../dist/configuration.js';
-import { buildPreferencesView } from '../dist/preferences-view.js';
+import { buildEntityRows, buildPreferencesView } from '../dist/preferences-view.js';
 import { assertThrowsMatching } from './assertions.mjs';
 
 const JsUnit = imports.jsUnit;
@@ -166,6 +169,61 @@ const tests = {
         assertThrowsMatching(() => moveGroup(moved, 'missing', 1), /group id missing must exist/);
         assertThrowsMatching(() => removeGroup(moved, 'missing'), /group id missing must exist/);
     },
+    testAddsEditsAndRemovesEntitiesWithoutChangingOtherConfiguration() {
+        const added = upsertEntity(validConfiguration, 'living-room', null, {
+            entityId: 'light.floor_lamp',
+            unitOverride: '  ',
+        });
+        const edited = upsertEntity(added, 'living-room', 'sensor.living_room_humidity', {
+            entityId: 'sensor.indoor_humidity',
+            unitOverride: ' % ',
+        });
+        const removed = removeEntity(edited, 'living-room', 'sensor.living_room_temperature');
+
+        JsUnit.assertEquals('sensor.living_room_temperature,sensor.living_room_humidity,light.floor_lamp', added.groups[0].entities.map(entity => entity.entityId).join(','));
+        JsUnit.assertFalse('unitOverride' in added.groups[0].entities[2]);
+        JsUnit.assertEquals('sensor.living_room_temperature,sensor.indoor_humidity,light.floor_lamp', edited.groups[0].entities.map(entity => entity.entityId).join(','));
+        JsUnit.assertEquals('%', edited.groups[0].entities[1].unitOverride);
+        JsUnit.assertEquals('sensor.indoor_humidity,light.floor_lamp', removed.groups[0].entities.map(entity => entity.entityId).join(','));
+        JsUnit.assertEquals(JSON.stringify(validConfiguration.instances), JSON.stringify(removed.instances));
+    },
+    testValidatesEntityOperationsAndReordersOnlyTheSelectedGroup() {
+        const anotherGroup = {
+            id: 'overview',
+            instanceId: 'cabin',
+            name: 'Overview',
+            dashboardPath: '/overview',
+            entities: [{ entityId: 'sensor.living_room_humidity' }],
+        };
+        const configuration = upsertGroup(validConfiguration, anotherGroup);
+        const moved = moveEntity(configuration, 'living-room', 'sensor.living_room_humidity', -1);
+
+        JsUnit.assertEquals('sensor.living_room_humidity,sensor.living_room_temperature', moved.groups[0].entities.map(entity => entity.entityId).join(','));
+        JsUnit.assertEquals(JSON.stringify(anotherGroup.entities), JSON.stringify(moved.groups[1].entities));
+        assertThrowsMatching(() => upsertEntity(configuration, 'living-room', null, { entityId: 'sensor.living_room_humidity' }), /must be unique within its group/);
+        assertThrowsMatching(() => upsertEntity(configuration, 'missing', null, { entityId: 'sensor.valid' }), /group id missing must exist/);
+        assertThrowsMatching(() => upsertEntity(configuration, 'living-room', 'sensor.missing', { entityId: 'sensor.valid' }), /entity id sensor.missing must exist/);
+        assertThrowsMatching(() => upsertEntity(configuration, 'living-room', null, { entityId: 'invalid' }), /must use domain.object_id/);
+        assertThrowsMatching(() => removeEntity(configuration, 'living-room', 'sensor.missing'), /entity id sensor.missing must exist/);
+        assertThrowsMatching(() => moveEntity(configuration, 'living-room', 'sensor.living_room_temperature', -1), /cannot move further/);
+        assertThrowsMatching(() => moveEntity(configuration, 'missing', 'sensor.valid', 1), /group id missing must exist/);
+    },
+    testDerivesOrderedEntityRowsAndMoveControls() {
+        const rows = buildEntityRows(validConfiguration, 'living-room');
+
+        JsUnit.assertEquals('sensor.living_room_temperature,sensor.living_room_humidity', rows.map(row => row.title).join(','));
+        JsUnit.assertEquals('°C', rows[0].subtitle);
+        JsUnit.assertEquals('Uses Home Assistant unit', rows[1].subtitle);
+        JsUnit.assertFalse(rows[0].canMoveUp);
+        JsUnit.assertTrue(rows[0].canMoveDown);
+        JsUnit.assertTrue(rows[1].canMoveUp);
+        JsUnit.assertFalse(rows[1].canMoveDown);
+        JsUnit.assertEquals(0, buildEntityRows(upsertGroup(validConfiguration, {
+            ...validConfiguration.groups[0],
+            entities: [],
+        }), 'living-room').length);
+        assertThrowsMatching(() => buildEntityRows(validConfiguration, 'missing'), /group id missing must exist/);
+    },
     testDerivesDisabledControlsForEmptyPreferences() {
         const view = buildPreferencesView(createDefaultConfiguration());
 
@@ -261,6 +319,7 @@ const invalidCases = [
     ['non-object entity', { ...validConfiguration, groups: [{ ...validConfiguration.groups[0], entities: [null] }] }, /entities\[0\] must be an object/],
     ['invalid entity ID', { ...validConfiguration, groups: [{ ...validConfiguration.groups[0], entities: [{ entityId: 'temperature' }] }] }, /must use domain.object_id/],
     ['blank unit override', { ...validConfiguration, groups: [{ ...validConfiguration.groups[0], entities: [{ entityId: 'sensor.temperature', unitOverride: '' }] }] }, /unitOverride must be a non-empty string/],
+    ['duplicate entity', { ...validConfiguration, groups: [{ ...validConfiguration.groups[0], entities: [validConfiguration.groups[0].entities[0], validConfiguration.groups[0].entities[0]] }] }, /must be unique within its group/],
 ];
 
 invalidCases.forEach(([, value, expectedError], index) => {
