@@ -18,8 +18,8 @@ test('packages every module imported by the preferences entry point', async () =
     const modules = await collectRuntimeModules(path.join(projectDirectory, 'dist'));
     const extraSources = extraSourcesFrom(packageJson.scripts.package);
 
-    assert.deepEqual(modules, ['action-runner.js', 'configuration.js', 'extension.js', 'preferences-view.js', 'prefs.js']);
-    assert.deepEqual(extraSources, ['action-runner.js', 'configuration.js', 'preferences-view.js']);
+    assert.deepEqual(modules, ['action-runner.js', 'configuration.js', 'credential-store.js', 'extension.js', 'preferences-view.js', 'prefs.js', 'secret-service.js']);
+    assert.deepEqual(extraSources, ['action-runner.js', 'configuration.js', 'credential-store.js', 'preferences-view.js', 'secret-service.js']);
     assert.doesNotThrow(() => assertRuntimeModulesPackaged(modules, extraSources));
 });
 
