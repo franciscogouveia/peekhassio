@@ -16,6 +16,7 @@ import {
     upsertGroup,
     upsertInstance,
 } from './configuration.js';
+import { buildPreferencesView } from './preferences-view.js';
 
 function messageFrom(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
@@ -54,6 +55,7 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
     }
 
     #buildInstancesPage(): Adw.PreferencesPage {
+        const view = buildPreferencesView(this.#configuration);
         const page = new Adw.PreferencesPage({
             title: _('Instances'),
             icon_name: 'network-server-symbolic',
@@ -71,17 +73,18 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
         addButton.connect('clicked', () => void this.#editInstance());
         group.header_suffix = addButton;
 
-        if (this.#configuration.instances.length === 0) {
+        if (view.instanceRows.length === 0) {
             group.add(new Adw.ActionRow({
                 title: _('No instances configured'),
                 subtitle: _('Add a Home Assistant instance to get started.'),
             }));
         }
 
-        this.#configuration.instances.forEach((instance) => {
+        view.instanceRows.forEach((item) => {
+            const instance = this.#configuration.instances.find(candidate => candidate.id === item.id)!;
             const row = new Adw.ActionRow({
-                title: instance.name,
-                subtitle: instance.baseUrl,
+                title: item.title,
+                subtitle: item.subtitle,
                 subtitle_selectable: true,
             });
             const editButton = this.#iconButton('document-edit-symbolic', _('Edit instance'));
@@ -98,6 +101,7 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
     }
 
     #buildGroupsPage(): Adw.PreferencesPage {
+        const view = buildPreferencesView(this.#configuration);
         const page = new Adw.PreferencesPage({
             title: _('Groups'),
             icon_name: 'view-list-symbolic',
@@ -107,11 +111,11 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
             description: _('Groups appear in this order in the top bar.'),
         });
         const addButton = this.#iconButton('list-add-symbolic', _('Add group'));
-        addButton.sensitive = this.#configuration.instances.length > 0;
+        addButton.sensitive = view.canAddGroup;
         addButton.connect('clicked', () => void this.#editGroup());
         group.header_suffix = addButton;
 
-        if (this.#configuration.groups.length === 0) {
+        if (view.groupRows.length === 0) {
             group.add(new Adw.ActionRow({
                 title: _('No groups configured'),
                 subtitle: this.#configuration.instances.length === 0
@@ -120,18 +124,18 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
             }));
         }
 
-        this.#configuration.groups.forEach((displayGroup, index) => {
-            const instance = this.#configuration.instances.find(candidate => candidate.id === displayGroup.instanceId)!;
+        view.groupRows.forEach((item) => {
+            const displayGroup = this.#configuration.groups.find(candidate => candidate.id === item.id)!;
             const row = new Adw.ActionRow({
-                title: displayGroup.name,
-                subtitle: `${instance.name} · ${displayGroup.dashboardPath}`,
+                title: item.title,
+                subtitle: item.subtitle,
             });
             const upButton = this.#iconButton('go-up-symbolic', _('Move group up'));
             const downButton = this.#iconButton('go-down-symbolic', _('Move group down'));
             const editButton = this.#iconButton('document-edit-symbolic', _('Edit group'));
             const deleteButton = this.#iconButton('user-trash-symbolic', _('Delete group'));
-            upButton.sensitive = index > 0;
-            downButton.sensitive = index < this.#configuration.groups.length - 1;
+            upButton.sensitive = item.canMoveUp;
+            downButton.sensitive = item.canMoveDown;
             upButton.connect('clicked', () => void this.#moveGroup(displayGroup, -1));
             downButton.connect('clicked', () => void this.#moveGroup(displayGroup, 1));
             editButton.connect('clicked', () => void this.#editGroup(displayGroup));
