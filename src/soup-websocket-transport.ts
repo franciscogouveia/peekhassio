@@ -8,6 +8,8 @@ import type {
     WebSocketTransport,
 } from './home-assistant-client.js';
 
+Gio._promisify(Soup.Session.prototype, 'websocket_connect_async', 'websocket_connect_finish');
+
 class SoupConnection implements WebSocketConnection {
     readonly #connection: Soup.WebsocketConnection;
 

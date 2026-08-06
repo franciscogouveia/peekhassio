@@ -18,8 +18,8 @@ test('packages every module imported by the preferences entry point', async () =
     const modules = await collectRuntimeModules(path.join(projectDirectory, 'dist'));
     const extraSources = extraSourcesFrom(packageJson.scripts.package);
 
-    assert.deepEqual(modules, ['action-runner.js', 'configuration.js', 'credential-store.js', 'extension.js', 'preferences-view.js', 'prefs.js', 'secret-service.js']);
-    assert.deepEqual(extraSources, ['action-runner.js', 'configuration.js', 'credential-store.js', 'entity-state-client.js', 'home-assistant-client.js', 'panel-renderer.js', 'panel-view.js', 'preferences-view.js', 'runtime-coordinator.js', 'secret-service.js', 'soup-websocket-transport.js']);
+    assert.deepEqual(modules, ['action-runner.js', 'configuration.js', 'credential-store.js', 'entity-state-client.js', 'extension-runtime.js', 'extension.js', 'home-assistant-client.js', 'panel-renderer.js', 'panel-view.js', 'preferences-view.js', 'prefs.js', 'runtime-coordinator.js', 'secret-service.js', 'soup-websocket-transport.js']);
+    assert.deepEqual(extraSources, ['action-runner.js', 'configuration.js', 'credential-store.js', 'entity-state-client.js', 'extension-runtime.js', 'home-assistant-client.js', 'panel-renderer.js', 'panel-view.js', 'preferences-view.js', 'runtime-coordinator.js', 'secret-service.js', 'soup-websocket-transport.js']);
     assert.doesNotThrow(() => assertRuntimeModulesPackaged(modules, extraSources));
 });
 
