@@ -11,7 +11,12 @@ export interface WebSocketConnection {
     sendText(message: string): void;
     close(): void;
     onMessage(callback: (message: string | null) => void): () => void;
-    onClosed(callback: () => void): () => void;
+    onClosed(callback: (closure: WebSocketClosure) => void): () => void;
+}
+
+export interface WebSocketClosure {
+    code: number;
+    transportError: boolean;
 }
 
 export interface WebSocketTransport {
@@ -86,8 +91,11 @@ export async function connectAuthenticated(
             finish(new Error('Home Assistant authentication timed out.'))));
         cleanupCallbacks.push(cancellation.onCancel(() =>
             finish(new Error('Home Assistant connection was cancelled.'))));
-        cleanupCallbacks.push(connection.onClosed(() =>
-            finish(new Error('Home Assistant closed the connection during authentication.'), undefined, false)));
+        cleanupCallbacks.push(connection.onClosed(closure => finish(new Error(
+            closure.transportError
+                ? 'Home Assistant authentication connection failed at the transport layer.'
+                : `Home Assistant closed the authentication connection (WebSocket code ${closure.code}).`,
+        ), undefined, false)));
         cleanupCallbacks.push(connection.onMessage((message) => {
             try {
                 const value = parseMessage(message);

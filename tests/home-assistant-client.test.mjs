@@ -64,8 +64,8 @@ class FakeConnection {
         this.messageCallbacks.forEach(callback => callback(message));
     }
 
-    remoteClose() {
-        this.closedCallbacks.forEach(callback => callback());
+    remoteClose(closure = { code: 1000, transportError: false }) {
+        this.closedCallbacks.forEach(callback => callback(closure));
     }
 }
 
@@ -136,8 +136,8 @@ test('handles timeout, cancellation, closure, connection failure, and invalid in
     const closedConnection = new FakeConnection();
     const closed = connect(closedConnection);
     await Promise.resolve();
-    closedConnection.remoteClose();
-    await assert.rejects(closed.promise, /closed the connection/);
+    closedConnection.remoteClose({ code: 1009, transportError: false });
+    await assert.rejects(closed.promise, /WebSocket code 1009/);
 
     const cancellation = new FakeCancellation();
     cancellation.cancel();
@@ -285,8 +285,13 @@ test('handles entity initialization timeout, cancellation, closure, and invalid 
 
     const connection = new FakeConnection();
     const closed = subscribe(connection);
-    connection.remoteClose();
-    await assert.rejects(closed.promise, /closed the entity connection/);
+    connection.remoteClose({ code: 1009, transportError: false });
+    await assert.rejects(closed.promise, /WebSocket code 1009/);
+
+    const transportConnection = new FakeConnection();
+    const transportFailure = subscribe(transportConnection);
+    transportConnection.remoteClose({ code: 1006, transportError: true });
+    await assert.rejects(transportFailure.promise, /transport layer/);
 
     await assert.rejects(subscribeEntityStates(connection, [], new FakeCancellation(), new FakeScheduler(), 0, () => {}, () => {}), /timeout must be positive/);
     const alreadyCancelled = new FakeCancellation();

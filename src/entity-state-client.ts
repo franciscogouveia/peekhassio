@@ -159,8 +159,11 @@ export function subscribeEntityStates(
         cleanupCallbacks.push(cancelTimeout);
         cleanupCallbacks.push(cancellation.onCancel(() =>
             fail(new Error('Home Assistant entity subscription was cancelled.'))));
-        cleanupCallbacks.push(connection.onClosed(() =>
-            fail(new Error('Home Assistant closed the entity connection.'))));
+        cleanupCallbacks.push(connection.onClosed(closure => fail(new Error(
+            closure.transportError
+                ? 'Home Assistant entity connection failed at the transport layer.'
+                : `Home Assistant closed the entity connection (WebSocket code ${closure.code}).`,
+        ))));
         cleanupCallbacks.push(connection.onMessage((text) => {
             try {
                 const message = parseMessage(text);

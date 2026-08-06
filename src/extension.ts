@@ -44,7 +44,7 @@ export default class PeekhassioExtension extends Extension {
                 onError,
             ),
             onUpdate: groups => panel.render(groups),
-            onError: (_instanceId, error) => this.#reportError(error),
+            onError: (instanceId, error) => this.#reportError(error, instanceId),
         });
 
         this.#runtime = new ExtensionRuntime(settings, store, coordinator, panel, error => this.#reportError(error));
@@ -56,8 +56,9 @@ export default class PeekhassioExtension extends Extension {
         this.#runtime = null;
     }
 
-    #reportError(error: unknown): void {
+    #reportError(error: unknown, instanceId?: string): void {
         const message = error instanceof Error ? error.message : 'Unexpected runtime failure.';
-        console.error(`Peekhassio runtime error: ${message}`);
+        const instance = instanceId ? ` for instance ${instanceId}` : '';
+        console.error(`Peekhassio runtime error${instance}: ${message}`);
     }
 }
