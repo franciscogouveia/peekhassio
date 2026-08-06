@@ -140,6 +140,29 @@ GNOME Shell version, validation commands and results, and any rollout or
 rollback notes. Include UI evidence for visual changes and call out changes to
 permissions, network access, authentication, settings schemas, or stored data.
 
+Create GitLab merge requests with Git push options. Write descriptions using
+GitLab Flavored Markdown encoded as normal UTF-8 text. Push-option values cannot
+contain actual newline characters, so represent every line break with the
+literal two-character sequence `\n`; GitLab converts those sequences to
+newlines. Never URL-encode line breaks as `%0A`. Quote the complete push option
+so the shell preserves spaces, Markdown, and the `\n` sequences, for example:
+
+```sh
+git push --set-upstream \
+    -o merge_request.create \
+    -o merge_request.target=main \
+    -o 'merge_request.title=feat: add entity display' \
+    -o 'merge_request.description=## Purpose\nDescribe the change.\n\n## Validation\n- `npm run check`: passed' \
+    origin feat/entity-display
+```
+
+Do not invoke, probe for, or attempt to install `glab` or any other GitLab CLI;
+assume that no GitLab CLI is installed or available. Use Git push options when
+creating a merge request. If existing merge request metadata cannot be updated
+with a normal, non-history-rewriting Git push, report that limitation instead
+of creating an empty commit, amending a commit, or force-pushing solely to
+change the metadata.
+
 ## Security and Configuration
 
 - Never commit Home Assistant tokens, private keys, generated secrets, private
