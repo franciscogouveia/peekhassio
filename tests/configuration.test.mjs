@@ -16,6 +16,7 @@ import {
     upsertInstance,
     upsertGroup,
 } from '../dist/configuration.js';
+import { buildPreferencesView } from '../dist/preferences-view.js';
 import { assertThrowsMatching } from './assertions.mjs';
 
 const JsUnit = imports.jsUnit;
@@ -163,6 +164,39 @@ const tests = {
         assertThrowsMatching(() => moveGroup(moved, 'overview', -1), /cannot move further/);
         assertThrowsMatching(() => moveGroup(moved, 'missing', 1), /group id missing must exist/);
         assertThrowsMatching(() => removeGroup(moved, 'missing'), /group id missing must exist/);
+    },
+    testDerivesDisabledControlsForEmptyPreferences() {
+        const view = buildPreferencesView(createDefaultConfiguration());
+
+        JsUnit.assertFalse(view.canAddGroup);
+        JsUnit.assertEquals(0, view.instanceRows.length);
+        JsUnit.assertEquals(0, view.groupRows.length);
+    },
+    testUpdatesVisibleControlsAfterGroupInteractions() {
+        const added = upsertGroup(validConfiguration, {
+            id: 'overview',
+            instanceId: 'cabin',
+            name: 'Overview',
+            dashboardPath: '/dashboard/overview',
+            entities: [],
+        });
+        const beforeMove = buildPreferencesView(added);
+        const afterMove = buildPreferencesView(moveGroup(added, 'overview', -1));
+        const afterDelete = buildPreferencesView(removeGroup(added, 'living-room'));
+
+        JsUnit.assertTrue(beforeMove.canAddGroup);
+        JsUnit.assertEquals('Home', beforeMove.instanceRows[0].title);
+        JsUnit.assertEquals('https://ha.example.com', beforeMove.instanceRows[0].subtitle);
+        JsUnit.assertEquals('Living room,Overview', beforeMove.groupRows.map(row => row.title).join(','));
+        JsUnit.assertEquals('Cabin · /dashboard/overview', beforeMove.groupRows[1].subtitle);
+        JsUnit.assertFalse(beforeMove.groupRows[0].canMoveUp);
+        JsUnit.assertTrue(beforeMove.groupRows[0].canMoveDown);
+        JsUnit.assertTrue(beforeMove.groupRows[1].canMoveUp);
+        JsUnit.assertFalse(beforeMove.groupRows[1].canMoveDown);
+        JsUnit.assertEquals('Overview,Living room', afterMove.groupRows.map(row => row.title).join(','));
+        JsUnit.assertEquals('Overview', afterDelete.groupRows.map(row => row.title).join(','));
+        JsUnit.assertFalse(afterDelete.groupRows[0].canMoveUp);
+        JsUnit.assertFalse(afterDelete.groupRows[0].canMoveDown);
     },
 };
 
