@@ -3,9 +3,11 @@ import type {
     EntityConfiguration,
     InstanceConfiguration,
 } from './configuration.js';
-import type { CredentialStore } from './credential-store.js';
+import { CredentialError, type CredentialStore } from './credential-store.js';
 import type { EntityState, EntitySubscription } from './entity-state-client.js';
-import type { AuthenticatedSession, Cancellation } from './home-assistant-client.js';
+import { AuthenticationError, type AuthenticatedSession, type Cancellation } from './home-assistant-client.js';
+
+export type RuntimeStatus = 'connecting' | 'ready' | 'stale' | 'authentication-failed';
 
 export interface OwnedCancellation extends Cancellation {
     cancel(): void;
@@ -15,6 +17,7 @@ export interface RuntimeGroupState {
     id: string;
     name: string;
     entities: EntityState[];
+    status: RuntimeStatus;
 }
 
 export interface RuntimeDependencies {
@@ -60,6 +63,7 @@ export class RuntimeCoordinator {
             id: group.id,
             name: group.name,
             entities: group.entities.map(entity => missing(entity.entityId)),
+            status: 'connecting',
         }]));
         this.#emit();
         const generation = this.#generation;
@@ -85,8 +89,11 @@ export class RuntimeCoordinator {
         const configuration = this.#configuration!;
         const groups = configuration.groups.filter(group => group.instanceId === instance.id);
         const entityIds = [...new Set(groups.flatMap(group => group.entities.map(entity => entity.entityId)))];
-        if (entityIds.length === 0)
+        if (entityIds.length === 0) {
+            this.#setInstanceStatus(instance.id, 'ready');
+            this.#emit();
             return;
+        }
         const runtime = { cancellation: this.#dependencies.createCancellation() } as InstanceRuntime;
         this.#instances.set(instance.id, runtime);
         try {
@@ -127,6 +134,7 @@ export class RuntimeCoordinator {
                     const state = byId.get(entity.entityId) ?? missing(entity.entityId);
                     return entity.unitOverride ? { ...state, unit: entity.unitOverride } : state;
                 }),
+                status: 'ready',
             });
         });
         this.#emit();
@@ -140,7 +148,22 @@ export class RuntimeCoordinator {
         runtime.cancellation.cancel();
         runtime.subscription?.stop();
         runtime.session?.connection.close();
+        this.#setInstanceStatus(instanceId,
+            error instanceof CredentialError || error instanceof AuthenticationError
+                ? 'authentication-failed'
+                : 'stale');
+        this.#emit();
         this.#dependencies.onError(instanceId, error);
+    }
+
+    #setInstanceStatus(instanceId: string, status: RuntimeStatus): void {
+        const configuration = this.#configuration;
+        if (!configuration)
+            return;
+        configuration.groups.filter(group => group.instanceId === instanceId).forEach((group) => {
+            const state = this.#groups.get(group.id)!;
+            this.#groups.set(group.id, { ...state, status });
+        });
     }
 
     #isCurrent(generation: number, instanceId: string): boolean {

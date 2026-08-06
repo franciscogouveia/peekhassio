@@ -28,6 +28,8 @@ export interface AuthenticatedSession {
     homeAssistantVersion: string;
 }
 
+export class AuthenticationError extends Error {}
+
 function parseMessage(message: string | null): Record<string, unknown> {
     if (message === null)
         throw new Error('Home Assistant sent a binary authentication message.');
@@ -52,7 +54,7 @@ export async function connectAuthenticated(
     timeoutMilliseconds: number,
 ): Promise<AuthenticatedSession> {
     if (accessToken.trim() === '')
-        throw new Error('Home Assistant access token is missing.');
+        throw new AuthenticationError('Home Assistant access token is missing.');
     if (timeoutMilliseconds <= 0)
         throw new Error('Home Assistant connection timeout must be positive.');
     if (cancellation.isCancelled())
@@ -106,7 +108,7 @@ export async function connectAuthenticated(
                     phase = 'result';
                 }
                 else if (value.type === 'auth_invalid') {
-                    finish(new Error('Home Assistant rejected the access token.'));
+                    finish(new AuthenticationError('Home Assistant rejected the access token.'));
                 }
                 else if (value.type === 'auth_ok' && typeof value.ha_version === 'string') {
                     finish(undefined, value.ha_version);
