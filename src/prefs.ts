@@ -4,6 +4,7 @@ import Gtk from 'gi://Gtk';
 
 import { ExtensionPreferences, gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
+import { runSafely } from './action-runner.js';
 import {
     ConfigurationStore,
     type ConfigurationV1,
@@ -70,7 +71,7 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
             valign: Gtk.Align.CENTER,
         });
         addButton.add_css_class('flat');
-        addButton.connect('clicked', () => void this.#editInstance());
+        addButton.connect('clicked', () => this.#runAction(() => this.#editInstance()));
         group.header_suffix = addButton;
 
         if (view.instanceRows.length === 0) {
@@ -89,8 +90,8 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
             });
             const editButton = this.#iconButton('document-edit-symbolic', _('Edit instance'));
             const deleteButton = this.#iconButton('user-trash-symbolic', _('Delete instance'));
-            editButton.connect('clicked', () => void this.#editInstance(instance));
-            deleteButton.connect('clicked', () => void this.#deleteInstance(instance));
+            editButton.connect('clicked', () => this.#runAction(() => this.#editInstance(instance)));
+            deleteButton.connect('clicked', () => this.#runAction(() => this.#deleteInstance(instance)));
             row.add_suffix(editButton);
             row.add_suffix(deleteButton);
             group.add(row);
@@ -112,7 +113,7 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
         });
         const addButton = this.#iconButton('list-add-symbolic', _('Add group'));
         addButton.sensitive = view.canAddGroup;
-        addButton.connect('clicked', () => void this.#editGroup());
+        addButton.connect('clicked', () => this.#runAction(() => this.#editGroup()));
         group.header_suffix = addButton;
 
         if (view.groupRows.length === 0) {
@@ -136,10 +137,10 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
             const deleteButton = this.#iconButton('user-trash-symbolic', _('Delete group'));
             upButton.sensitive = item.canMoveUp;
             downButton.sensitive = item.canMoveDown;
-            upButton.connect('clicked', () => void this.#moveGroup(displayGroup, -1));
-            downButton.connect('clicked', () => void this.#moveGroup(displayGroup, 1));
-            editButton.connect('clicked', () => void this.#editGroup(displayGroup));
-            deleteButton.connect('clicked', () => void this.#deleteGroup(displayGroup));
+            upButton.connect('clicked', () => this.#runAction(() => this.#moveGroup(displayGroup, -1)));
+            downButton.connect('clicked', () => this.#runAction(() => this.#moveGroup(displayGroup, 1)));
+            editButton.connect('clicked', () => this.#runAction(() => this.#editGroup(displayGroup)));
+            deleteButton.connect('clicked', () => this.#runAction(() => this.#deleteGroup(displayGroup)));
             row.add_suffix(upButton);
             row.add_suffix(downButton);
             row.add_suffix(editButton);
@@ -161,7 +162,7 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
         return button;
     }
 
-    async #editInstance(existing?: InstanceConfiguration): Promise<void> {
+    #editInstance(existing?: InstanceConfiguration): void {
         const id = existing?.id ?? GLib.uuid_string_random();
         const dialog = new Adw.AlertDialog({
             heading: existing ? _('Edit instance') : _('Add instance'),
@@ -203,12 +204,14 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
         urlRow.connect('changed', validate);
         validate();
 
-        if (await dialog.choose(this.#window, null) !== 'save' || candidate === null)
-            return;
-        await this.#persist(candidate);
+        dialog.connect('response', (_dialog, response) => this.#runAction(() => {
+            if (response === 'save' && candidate !== null)
+                this.#persist(candidate);
+        }));
+        dialog.present(this.#window);
     }
 
-    async #editGroup(existing?: GroupConfiguration): Promise<void> {
+    #editGroup(existing?: GroupConfiguration): void {
         const id = existing?.id ?? GLib.uuid_string_random();
         const instanceNames = this.#configuration.instances
             .map(instance => `${instance.name} · ${instance.baseUrl}`);
@@ -263,12 +266,14 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
         pathRow.connect('changed', validate);
         validate();
 
-        if (await dialog.choose(this.#window, null) !== 'save' || candidate === null)
-            return;
-        await this.#persist(candidate, true);
+        dialog.connect('response', (_dialog, response) => this.#runAction(() => {
+            if (response === 'save' && candidate !== null)
+                this.#persist(candidate, true);
+        }));
+        dialog.present(this.#window);
     }
 
-    async #deleteGroup(group: GroupConfiguration): Promise<void> {
+    #deleteGroup(group: GroupConfiguration): void {
         const dialog = new Adw.AlertDialog({
             heading: _('Delete “%s”?').format(group.name),
             body: _('This also removes every entity configured in this group.'),
@@ -277,19 +282,21 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
         dialog.add_response('delete', _('Delete'));
         dialog.close_response = 'cancel';
         dialog.set_response_appearance('delete', Adw.ResponseAppearance.DESTRUCTIVE);
-        if (await dialog.choose(this.#window, null) !== 'delete')
-            return;
-        await this.#persist(removeGroup(this.#configuration, group.id), true);
+        dialog.connect('response', (_dialog, response) => this.#runAction(() => {
+            if (response === 'delete')
+                this.#persist(removeGroup(this.#configuration, group.id), true);
+        }));
+        dialog.present(this.#window);
     }
 
-    async #moveGroup(group: GroupConfiguration, direction: -1 | 1): Promise<void> {
-        await this.#persist(moveGroup(this.#configuration, group.id, direction), true);
+    #moveGroup(group: GroupConfiguration, direction: -1 | 1): void {
+        this.#persist(moveGroup(this.#configuration, group.id, direction), true);
     }
 
-    async #deleteInstance(instance: InstanceConfiguration): Promise<void> {
+    #deleteInstance(instance: InstanceConfiguration): void {
         const references = this.#configuration.groups.filter(group => group.instanceId === instance.id).length;
         if (references > 0) {
-            await this.#showMessage(
+            this.#showMessage(
                 _('Instance cannot be deleted'),
                 _('Remove or reassign its display groups first.'),
             );
@@ -304,19 +311,21 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
         dialog.add_response('delete', _('Delete'));
         dialog.close_response = 'cancel';
         dialog.set_response_appearance('delete', Adw.ResponseAppearance.DESTRUCTIVE);
-        if (await dialog.choose(this.#window, null) !== 'delete')
-            return;
-        await this.#persist(removeInstance(this.#configuration, instance.id));
+        dialog.connect('response', (_dialog, response) => this.#runAction(() => {
+            if (response === 'delete')
+                this.#persist(removeInstance(this.#configuration, instance.id));
+        }));
+        dialog.present(this.#window);
     }
 
-    async #persist(configuration: ConfigurationV1, showGroups = false): Promise<void> {
+    #persist(configuration: ConfigurationV1, showGroups = false): void {
         try {
             this.#store.save(configuration);
             this.#configuration = configuration;
             this.#renderPreferences(showGroups);
         }
         catch (error) {
-            await this.#showMessage(_('Could not save preferences'), messageFrom(error));
+            this.#showMessage(_('Could not save preferences'), messageFrom(error));
         }
     }
 
@@ -329,14 +338,14 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
         });
         const resetButton = new Gtk.Button({ label: _('Reset configuration'), valign: Gtk.Align.CENTER });
         resetButton.add_css_class('destructive-action');
-        resetButton.connect('clicked', () => void this.#resetConfiguration());
+        resetButton.connect('clicked', () => this.#runAction(() => this.#resetConfiguration()));
         row.add_suffix(resetButton);
         group.add(row);
         page.add(group);
         this.#replacePages([page]);
     }
 
-    async #resetConfiguration(): Promise<void> {
+    #resetConfiguration(): void {
         const dialog = new Adw.AlertDialog({
             heading: _('Reset Peekhassio configuration?'),
             body: _('This permanently replaces the invalid configuration with an empty one.'),
@@ -345,14 +354,26 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
         dialog.add_response('reset', _('Reset'));
         dialog.close_response = 'cancel';
         dialog.set_response_appearance('reset', Adw.ResponseAppearance.DESTRUCTIVE);
-        if (await dialog.choose(this.#window, null) !== 'reset')
-            return;
-        await this.#persist(createDefaultConfiguration());
+        dialog.connect('response', (_dialog, response) => this.#runAction(() => {
+            if (response === 'reset')
+                this.#persist(createDefaultConfiguration());
+        }));
+        dialog.present(this.#window);
     }
 
-    async #showMessage(heading: string, body: string): Promise<void> {
+    #showMessage(heading: string, body: string): void {
         const dialog = new Adw.AlertDialog({ heading, body });
         dialog.add_response('close', _('Close'));
-        await dialog.choose(this.#window, null);
+        dialog.present(this.#window);
+    }
+
+    #runAction(action: () => void): void {
+        runSafely(action, (error) => {
+            const message = messageFrom(error);
+            console.error(`Peekhassio preferences action failed: ${message}`);
+            this.#showMessage(_('Unexpected preferences error'), message);
+        }, (reportingError) => {
+            console.error(`Peekhassio could not display the error: ${messageFrom(reportingError)}`);
+        });
     }
 }
