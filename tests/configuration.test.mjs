@@ -5,10 +5,12 @@ import System from 'system';
 import { runSafely } from '../dist/action-runner.js';
 import {
     CONFIGURATION_KEY,
+    CREDENTIAL_REVISION_KEY,
     ConfigurationStore,
     buildDashboardUrl,
     buildWebSocketUrl,
     createDefaultConfiguration,
+    incrementCredentialRevision,
     moveEntity,
     moveGroup,
     parseConfigurationJson,
@@ -79,6 +81,25 @@ const tests = {
         JsUnit.assertEquals(JSON.stringify(createDefaultConfiguration()), JSON.stringify(store.load()));
         store.save(validConfiguration);
         JsUnit.assertEquals(JSON.stringify(validConfiguration), JSON.stringify(store.load()));
+    },
+    testIncrementsCredentialRevisionAndReportsRejectedUpdates() {
+        let revision = 4;
+        const settings = {
+            get_uint(key) {
+                JsUnit.assertEquals(CREDENTIAL_REVISION_KEY, key);
+                return revision;
+            },
+            set_uint(key, value) {
+                JsUnit.assertEquals(CREDENTIAL_REVISION_KEY, key);
+                revision = value;
+                return true;
+            },
+        };
+
+        incrementCredentialRevision(settings);
+        JsUnit.assertEquals(5, revision);
+        settings.set_uint = () => false;
+        assertThrowsMatching(() => incrementCredentialRevision(settings), /Could not notify/);
     },
     testReportsInvalidJsonAndRejectedSettingsUpdates() {
         assertThrowsMatching(() => parseConfigurationJson('{'), /value must be valid JSON/);

@@ -5,9 +5,22 @@ import type {
 } from './configuration.js';
 import { CredentialError, type CredentialStore } from './credential-store.js';
 import type { EntityState, EntitySubscription } from './entity-state-client.js';
-import { AuthenticationError, type AuthenticatedSession, type Cancellation } from './home-assistant-client.js';
+import {
+    AuthenticationError,
+    type AuthenticatedSession,
+    type Cancellation,
+    type Scheduler,
+} from './home-assistant-client.js';
 
 export type RuntimeStatus = 'connecting' | 'ready' | 'stale' | 'authentication-failed';
+
+const BASE_RETRY_MILLISECONDS = 1_000;
+const MAX_RETRY_MILLISECONDS = 60_000;
+
+export function calculateRetryDelay(attempt: number, random = Math.random): number {
+    const exponential = Math.min(MAX_RETRY_MILLISECONDS, BASE_RETRY_MILLISECONDS * 2 ** attempt);
+    return Math.min(MAX_RETRY_MILLISECONDS, Math.round(exponential * (0.75 + random() * 0.5)));
+}
 
 export interface OwnedCancellation extends Cancellation {
     cancel(): void;
@@ -33,10 +46,14 @@ export interface RuntimeDependencies {
     ): Promise<EntitySubscription>;
     onUpdate(groups: RuntimeGroupState[]): void;
     onError(instanceId: string, error: Error): void;
+    retryDelay(attempt: number): number;
+    scheduler: Scheduler;
 }
 
 interface InstanceRuntime {
+    attempt: number;
     cancellation: OwnedCancellation;
+    cancelRetry?: () => void;
     session?: AuthenticatedSession;
     subscription?: EntitySubscription;
 }
@@ -79,9 +96,8 @@ export class RuntimeCoordinator {
         this.#configuration = null;
         this.#groups.clear();
         runtimes.forEach((runtime) => {
-            runtime.cancellation.cancel();
-            runtime.subscription?.stop();
-            runtime.session?.connection.close();
+            runtime.cancelRetry?.();
+            this.#disposeConnection(runtime);
         });
     }
 
@@ -94,8 +110,20 @@ export class RuntimeCoordinator {
             this.#emit();
             return;
         }
-        const runtime = { cancellation: this.#dependencies.createCancellation() } as InstanceRuntime;
+        const runtime = {
+            attempt: 0,
+            cancellation: this.#dependencies.createCancellation(),
+        } as InstanceRuntime;
         this.#instances.set(instance.id, runtime);
+        await this.#connectInstance(instance, entityIds, runtime, generation);
+    }
+
+    async #connectInstance(
+        instance: InstanceConfiguration,
+        entityIds: string[],
+        runtime: InstanceRuntime,
+        generation: number,
+    ): Promise<void> {
         try {
             const token = await this.#dependencies.credentials.loadToken(instance.id);
             runtime.session = await this.#dependencies.connect(instance, token, runtime.cancellation);
@@ -113,6 +141,9 @@ export class RuntimeCoordinator {
             if (!this.#isCurrent(generation, instance.id)) {
                 runtime.subscription.stop();
                 runtime.session.connection.close();
+            }
+            else {
+                runtime.attempt = 0;
             }
         }
         catch (error) {
@@ -145,15 +176,39 @@ export class RuntimeCoordinator {
         if (!runtime)
             return;
         this.#instances.delete(instanceId);
+        this.#disposeConnection(runtime);
+        const authenticationFailure = error instanceof CredentialError || error instanceof AuthenticationError;
+        this.#setInstanceStatus(instanceId, authenticationFailure ? 'authentication-failed' : 'stale');
+        this.#emit();
+        this.#dependencies.onError(instanceId, error);
+        if (authenticationFailure)
+            return;
+
+        this.#instances.set(instanceId, runtime);
+        const delay = this.#dependencies.retryDelay(runtime.attempt++);
+        runtime.cancelRetry = this.#dependencies.scheduler.schedule(delay, () => {
+            delete runtime.cancelRetry;
+            if (!this.#isCurrent(this.#generation, instanceId))
+                return;
+            const configuration = this.#configuration!;
+            const instance = configuration.instances.find(candidate => candidate.id === instanceId)!;
+            const entityIds = [...new Set(configuration.groups
+                .filter(group => group.instanceId === instanceId)
+                .flatMap(group => group.entities.map(entity => entity.entityId)))];
+            runtime.cancellation = this.#dependencies.createCancellation();
+            this.#connectInstance(instance, entityIds, runtime, this.#generation).catch((retryError) => {
+                if (this.#isCurrent(this.#generation, instanceId))
+                    this.#failInstance(instanceId, retryError instanceof Error ? retryError : new Error('Home Assistant retry failed.'));
+            });
+        });
+    }
+
+    #disposeConnection(runtime: InstanceRuntime): void {
         runtime.cancellation.cancel();
         runtime.subscription?.stop();
         runtime.session?.connection.close();
-        this.#setInstanceStatus(instanceId,
-            error instanceof CredentialError || error instanceof AuthenticationError
-                ? 'authentication-failed'
-                : 'stale');
-        this.#emit();
-        this.#dependencies.onError(instanceId, error);
+        delete runtime.subscription;
+        delete runtime.session;
     }
 
     #setInstanceStatus(instanceId: string, status: RuntimeStatus): void {

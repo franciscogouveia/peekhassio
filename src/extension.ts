@@ -7,7 +7,7 @@ import { ExtensionRuntime } from './extension-runtime.js';
 import { connectAuthenticated } from './home-assistant-client.js';
 import { ShellPanelWidgetFactory } from './panel-renderer.js';
 import { PanelViewController } from './panel-view.js';
-import { RuntimeCoordinator } from './runtime-coordinator.js';
+import { RuntimeCoordinator, calculateRetryDelay } from './runtime-coordinator.js';
 import { SecretServiceBackend } from './secret-service.js';
 import { GioCancellation, GLibScheduler, SoupWebSocketTransport } from './soup-websocket-transport.js';
 
@@ -45,6 +45,8 @@ export default class PeekhassioExtension extends Extension {
             ),
             onUpdate: groups => panel.render(groups),
             onError: (instanceId, error) => this.#reportError(error, instanceId),
+            retryDelay: calculateRetryDelay,
+            scheduler,
         });
 
         this.#runtime = new ExtensionRuntime(settings, store, coordinator, panel, error => this.#reportError(error));

@@ -1,4 +1,5 @@
 import Adw from 'gi://Adw';
+import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Gtk from 'gi://Gtk';
 
@@ -13,6 +14,7 @@ import {
     type GroupConfiguration,
     type InstanceConfiguration,
     createDefaultConfiguration,
+    incrementCredentialRevision,
     moveEntity,
     moveGroup,
     removeGroup,
@@ -33,12 +35,14 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
     #configuration!: ConfigurationV1;
     #credentials!: CredentialStore;
     #pages: Adw.PreferencesPage[] = [];
+    #settings!: Gio.Settings;
     #store!: ConfigurationStore;
     #window!: Adw.PreferencesWindow;
 
     async fillPreferencesWindow(window: Adw.PreferencesWindow): Promise<void> {
         this.#window = window;
-        this.#store = new ConfigurationStore(this.getSettings());
+        this.#settings = this.getSettings();
+        this.#store = new ConfigurationStore(this.#settings);
         this.#credentials = new CredentialStore(new SecretServiceBackend());
         try {
             this.#configuration = this.#store.load();
@@ -518,6 +522,7 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
                 await this.#credentials.clearToken(instance.id);
             else
                 return;
+            incrementCredentialRevision(this.#settings);
             this.#renderPreferences();
         }));
         dialog.present(this.#window);

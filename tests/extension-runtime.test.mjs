@@ -14,7 +14,7 @@ function deferred() {
 }
 
 function createHarness(starts = []) {
-    let changed;
+    const changed = [];
     const disconnected = [];
     const errors = [];
     let destroys = 0;
@@ -23,9 +23,9 @@ function createHarness(starts = []) {
     const loaded = [];
     const settings = {
         connect(signal, callback) {
-            assert.equal(signal, 'changed::configuration-json');
-            changed = callback;
-            return 7;
+            assert.equal(signal, ['changed::configuration-json', 'changed::credential-revision'][changed.length]);
+            changed.push([signal, callback]);
+            return 7 + changed.length - 1;
         },
         disconnect: signal => disconnected.push(signal),
     };
@@ -56,7 +56,7 @@ function createHarness(starts = []) {
         errors,
         disconnected,
         loaded,
-        change: () => changed(),
+        change: index => changed[index][1](),
         destroys: () => destroys,
         stops: () => stops,
         store,
@@ -67,11 +67,12 @@ test('starts, reloads on settings changes, and cleans up on disable', () => {
     const harness = createHarness();
 
     harness.runtime.enable();
-    harness.change();
+    harness.change(0);
+    harness.change(1);
     harness.runtime.disable();
 
-    assert.equal(harness.loaded.length, 2);
-    assert.deepEqual(harness.disconnected, [7]);
+    assert.equal(harness.loaded.length, 3);
+    assert.deepEqual(harness.disconnected, [7, 8]);
     assert.equal(harness.stops(), 1);
     assert.equal(harness.destroys(), 1);
 });
@@ -81,7 +82,7 @@ test('ignores stale startup failure and owns the current failure', async () => {
     const current = deferred();
     const harness = createHarness([stale.promise, current.promise]);
     harness.runtime.enable();
-    harness.change();
+    harness.change(0);
 
     stale.reject(new Error('stale'));
     await Promise.resolve();
