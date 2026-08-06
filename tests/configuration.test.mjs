@@ -7,6 +7,7 @@ import {
     CONFIGURATION_KEY,
     ConfigurationStore,
     buildDashboardUrl,
+    buildWebSocketUrl,
     createDefaultConfiguration,
     moveEntity,
     moveGroup,
@@ -97,6 +98,18 @@ const tests = {
             'https://ha.example.com/lovelace/living-room',
             buildDashboardUrl({ ...validConfiguration.instances[0], baseUrl: 'https://ha.example.com/' }, group),
         );
+    },
+    testBuildsHomeAssistantWebSocketUrl() {
+        JsUnit.assertEquals('wss://ha.example.com/api/websocket', buildWebSocketUrl(validConfiguration.instances[0]));
+        JsUnit.assertEquals('ws://ha.local:8123/api/websocket', buildWebSocketUrl(validConfiguration.instances[1]));
+        JsUnit.assertEquals('wss://ha.example.com/api/websocket', buildWebSocketUrl({
+            ...validConfiguration.instances[0],
+            baseUrl: 'https://ha.example.com/prefix',
+        }));
+        assertThrowsMatching(() => buildWebSocketUrl({
+            ...validConfiguration.instances[0],
+            baseUrl: 'file:///private/data',
+        }), /baseUrl must be an HTTP/);
     },
     testAddsAndUpdatesInstancesWithoutChangingTheirOrder() {
         const added = upsertInstance(validConfiguration, {

@@ -238,6 +238,12 @@ export function buildDashboardUrl(instance: InstanceConfiguration, group: GroupC
     return GLib.Uri.resolve_relative(instance.baseUrl, group.dashboardPath, GLib.UriFlags.NONE);
 }
 
+export function buildWebSocketUrl(instance: InstanceConfiguration): string {
+    invariant(isHttpBaseUrl(instance.baseUrl), 'instance baseUrl must be an HTTP(S) base URL without a query or fragment');
+    const httpUrl = GLib.Uri.resolve_relative(instance.baseUrl, '/api/websocket', GLib.UriFlags.NONE);
+    return httpUrl.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:');
+}
+
 export class ConfigurationStore {
     readonly #settings: StringSettings;
 
