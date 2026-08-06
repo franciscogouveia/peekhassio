@@ -1,0 +1,90 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import { buildPanelGroupViews, PanelViewController } from '../dist/panel-view.js';
+
+const groups = [
+    {
+        id: 'living-room',
+        name: 'Living room',
+        entities: [
+            { entityId: 'sensor.temperature', value: '21', availability: 'available', unit: '°C' },
+            { entityId: 'sensor.humidity', value: null, availability: 'unknown', unit: '%' },
+        ],
+    },
+    {
+        id: 'porch',
+        name: 'Porch',
+        entities: [
+            { entityId: 'light.porch', value: null, availability: 'unavailable' },
+            { entityId: 'sensor.outdoor', value: null, availability: 'missing' },
+        ],
+    },
+    { id: 'empty', name: 'Empty', entities: [] },
+];
+
+test('builds compact labels, accessible descriptions, and degraded state', () => {
+    assert.deepEqual(buildPanelGroupViews(groups), [
+        {
+            id: 'living-room',
+            label: 'Living room 21°C ?',
+            accessibleName: 'Living room: sensor.temperature: 21 °C, sensor.humidity: unknown',
+            degraded: true,
+        },
+        {
+            id: 'porch',
+            label: 'Porch Unavailable —',
+            accessibleName: 'Porch: light.porch: unavailable, sensor.outdoor: missing',
+            degraded: true,
+        },
+        {
+            id: 'empty',
+            label: 'Empty',
+            accessibleName: 'Empty: no entities',
+            degraded: false,
+        },
+    ]);
+});
+
+test('updates stable widgets and rebuilds only for identity or order changes', () => {
+    const created = [];
+    const factory = {
+        create(view, position) {
+            const widget = {
+                destroyed: false,
+                position,
+                updates: [view],
+                update(nextView) {
+                    this.updates.push(nextView);
+                },
+                destroy() {
+                    this.destroyed = true;
+                },
+            };
+            created.push(widget);
+            return widget;
+        },
+    };
+    const controller = new PanelViewController(factory);
+
+    controller.render(groups);
+    const firstWidgets = [...created];
+    controller.render([{ ...groups[0], entities: [{
+        entityId: 'sensor.temperature',
+        value: '22',
+        availability: 'available',
+        unit: '°C',
+    }] }, groups[1], groups[2]]);
+    assert.equal(created.length, 3);
+    assert.equal(firstWidgets[0].updates.at(-1).label, 'Living room 22°C');
+    assert.equal(firstWidgets[0].destroyed, false);
+
+    controller.render([groups[1], groups[0], groups[2]]);
+    assert.equal(created.length, 6);
+    assert.deepEqual(created.slice(3).map(widget => widget.position), [0, 1, 2]);
+    assert.equal(firstWidgets.every(widget => widget.destroyed), true);
+
+    controller.render([]);
+    assert.equal(created.slice(3).every(widget => widget.destroyed), true);
+    controller.destroy();
+});
