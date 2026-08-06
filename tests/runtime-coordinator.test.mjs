@@ -137,14 +137,19 @@ test('isolates instance failures and owns active runtime cleanup', async () => {
 
 test('stops stale startup work and supports a fresh restart', async () => {
     let finishConnect;
+    let markConnectStarted;
+    const connectStarted = new Promise((resolve) => {
+        markConnectStarted = resolve;
+    });
     const harness = createHarness();
     const originalConnect = harness.coordinator;
     const pendingHarness = createHarness();
     pendingHarness.coordinator = new RuntimeCoordinator({
-        credentials: { loadToken: () => 'token' },
+        credentials: { loadToken: async () => 'token' },
         createCancellation: () => new FakeCancellation(),
         connect: async () => new Promise((resolve) => {
             finishConnect = resolve;
+            markConnectStarted();
         }),
         subscribe: async () => { throw new Error('must not subscribe'); },
         onUpdate: () => {},
@@ -156,6 +161,7 @@ test('stops stale startup work and supports a fresh restart', async () => {
         groups: [configuration.groups[0]],
     };
     const start = pendingHarness.coordinator.start(pendingConfiguration);
+    await connectStarted;
     pendingHarness.coordinator.stop();
     const connection = {
         closed: false,

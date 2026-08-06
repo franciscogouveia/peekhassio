@@ -93,9 +93,10 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
             const instance = this.#configuration.instances.find(candidate => candidate.id === item.id)!;
             const row = new Adw.ActionRow({
                 title: item.title,
-                subtitle: `${item.subtitle} · ${this.#tokenStatus(instance.id)}`,
+                subtitle: `${item.subtitle} · ${_('Checking token…')}`,
                 subtitle_selectable: true,
             });
+            this.#updateTokenStatus(row, item.subtitle, instance.id);
             const tokenButton = this.#iconButton('dialog-password-symbolic', _('Manage access token'));
             const editButton = this.#iconButton('document-edit-symbolic', _('Edit instance'));
             const deleteButton = this.#iconButton('user-trash-symbolic', _('Delete instance'));
@@ -184,8 +185,11 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
         const fields = new Adw.PreferencesGroup();
         const nameRow = new Adw.EntryRow({ title: _('Name'), text: existing?.name ?? '' });
         const urlRow = new Adw.EntryRow({ title: _('Base URL'), text: existing?.baseUrl ?? 'https://' });
+        const tokenRow = existing ? null : new Adw.PasswordEntryRow({ title: _('Long-lived access token') });
         fields.add(nameRow);
         fields.add(urlRow);
+        if (tokenRow)
+            fields.add(tokenRow);
         dialog.extra_child = fields;
         dialog.add_response('cancel', _('Cancel'));
         dialog.add_response('save', existing ? _('Save') : _('Add'));
@@ -206,7 +210,7 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
                 dialog.body = scheme === 'http'
                     ? _('Warning: HTTP does not protect Home Assistant data or credentials in transit.')
                     : '';
-                dialog.set_response_enabled('save', true);
+                dialog.set_response_enabled('save', tokenRow === null || tokenRow.text.trim() !== '');
             }
             catch (error) {
                 candidate = null;
@@ -216,12 +220,32 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
         };
         nameRow.connect('changed', validate);
         urlRow.connect('changed', validate);
+        tokenRow?.connect('changed', validate);
         validate();
 
-        dialog.connect('response', (_dialog, response) => this.#runAction(() => {
-            if (response === 'save' && candidate !== null)
-                this.#persist(candidate);
-        }));
+        dialog.connect('response', (_dialog, response) => {
+            if (response !== 'save' || candidate === null)
+                return;
+            if (tokenRow === null) {
+                this.#runAction(() => this.#persist(candidate!));
+                return;
+            }
+            this.#runAsyncAction(async () => {
+                await this.#credentials.saveToken(id, tokenRow.text);
+                try {
+                    this.#persistOrThrow(candidate!);
+                }
+                catch (error) {
+                    try {
+                        await this.#credentials.clearToken(id);
+                    }
+                    catch {
+                        console.error('Peekhassio could not roll back an access token after configuration storage failed.');
+                    }
+                    throw error;
+                }
+            });
+        });
         dialog.present(this.#window);
     }
 
@@ -450,27 +474,25 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
         dialog.add_response('delete', _('Delete'));
         dialog.close_response = 'cancel';
         dialog.set_response_appearance('delete', Adw.ResponseAppearance.DESTRUCTIVE);
-        dialog.connect('response', (_dialog, response) => this.#runAction(() => {
+        dialog.connect('response', (_dialog, response) => this.#runAsyncAction(async () => {
             if (response === 'delete') {
-                this.#credentials.clearToken(instance.id);
+                await this.#credentials.clearToken(instance.id);
                 this.#persist(removeInstance(this.#configuration, instance.id));
             }
         }));
         dialog.present(this.#window);
     }
 
-    #tokenStatus(instanceId: string): string {
-        try {
-            return this.#credentials.hasToken(instanceId) ? _('Token configured') : _('Token missing');
-        }
-        catch {
+    #updateTokenStatus(row: Adw.ActionRow, baseUrl: string, instanceId: string): void {
+        this.#credentials.hasToken(instanceId).then((configured) => {
+            row.subtitle = `${baseUrl} · ${configured ? _('Token configured') : _('Token missing')}`;
+        }).catch(() => {
             console.error('Peekhassio could not read an access token from Secret Service.');
-            return _('Token status unavailable');
-        }
+            row.subtitle = `${baseUrl} · ${_('Token status unavailable')}`;
+        });
     }
 
     #editToken(instance: InstanceConfiguration): void {
-        const hasToken = this.#credentials.hasToken(instance.id);
         const dialog = new Adw.AlertDialog({
             heading: _('Access token for “%s”').format(instance.name),
             body: _('The token is stored securely in GNOME Secret Service.'),
@@ -480,22 +502,20 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
         fields.add(tokenRow);
         dialog.extra_child = fields;
         dialog.add_response('cancel', _('Cancel'));
-        if (hasToken) {
-            dialog.add_response('remove', _('Remove token'));
-            dialog.set_response_appearance('remove', Adw.ResponseAppearance.DESTRUCTIVE);
-        }
-        dialog.add_response('save', hasToken ? _('Replace token') : _('Save token'));
+        dialog.add_response('remove', _('Remove token'));
+        dialog.set_response_appearance('remove', Adw.ResponseAppearance.DESTRUCTIVE);
+        dialog.add_response('save', _('Save token'));
         dialog.close_response = 'cancel';
         dialog.default_response = 'save';
         dialog.set_response_appearance('save', Adw.ResponseAppearance.SUGGESTED);
         const validate = (): void => dialog.set_response_enabled('save', tokenRow.text.trim() !== '');
         tokenRow.connect('changed', validate);
         validate();
-        dialog.connect('response', (_dialog, response) => this.#runAction(() => {
+        dialog.connect('response', (_dialog, response) => this.#runAsyncAction(async () => {
             if (response === 'save')
-                this.#credentials.saveToken(instance.id, tokenRow.text);
+                await this.#credentials.saveToken(instance.id, tokenRow.text);
             else if (response === 'remove')
-                this.#credentials.clearToken(instance.id);
+                await this.#credentials.clearToken(instance.id);
             else
                 return;
             this.#renderPreferences();
@@ -505,13 +525,17 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
 
     #persist(configuration: ConfigurationV1, showGroups = false): void {
         try {
-            this.#store.save(configuration);
-            this.#configuration = configuration;
-            this.#renderPreferences(showGroups);
+            this.#persistOrThrow(configuration, showGroups);
         }
         catch (error) {
             this.#showMessage(_('Could not save preferences'), messageFrom(error));
         }
+    }
+
+    #persistOrThrow(configuration: ConfigurationV1, showGroups = false): void {
+        this.#store.save(configuration);
+        this.#configuration = configuration;
+        this.#renderPreferences(showGroups);
     }
 
     #renderRecovery(error: string): void {
@@ -560,5 +584,11 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
         }, (reportingError) => {
             console.error(`Peekhassio could not display the error: ${messageFrom(reportingError)}`);
         });
+    }
+
+    #runAsyncAction(action: () => Promise<void>): void {
+        action().catch(error => this.#runAction(() => {
+            throw error;
+        }));
     }
 }
