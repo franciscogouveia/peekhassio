@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { CredentialError } from '../dist/credential-store.js';
 import { AuthenticationError } from '../dist/home-assistant-client.js';
-import { RuntimeCoordinator } from '../dist/runtime-coordinator.js';
+import { RuntimeCoordinator, calculateRetryDelay } from '../dist/runtime-coordinator.js';
 
 const configuration = {
     version: 1,
@@ -37,6 +37,12 @@ const configuration = {
     ],
 };
 
+async function flushPromises() {
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+}
+
 class FakeCancellation {
     cancelled = false;
 
@@ -53,10 +59,31 @@ class FakeCancellation {
     }
 }
 
+class FakeRetryScheduler {
+    delays = [];
+    tasks = [];
+
+    schedule(milliseconds, callback) {
+        const task = { callback, cancelled: false };
+        this.delays.push(milliseconds);
+        this.tasks.push(task);
+        return () => {
+            task.cancelled = true;
+        };
+    }
+
+    runNext() {
+        const task = this.tasks.shift();
+        if (!task.cancelled)
+            task.callback();
+    }
+}
+
 function createHarness(tokens = new Map([['home', 'home-token'], ['cabin', 'cabin-token']])) {
     const errors = [];
     const runtimes = new Map();
     const updates = [];
+    const retryScheduler = new FakeRetryScheduler();
     const dependencies = {
         credentials: {
             loadToken(instanceId) {
@@ -91,8 +118,10 @@ function createHarness(tokens = new Map([['home', 'home-token'], ['cabin', 'cabi
         },
         onUpdate: groups => updates.push(JSON.parse(JSON.stringify(groups))),
         onError: (instanceId, error) => errors.push([instanceId, error.message]),
+        retryDelay: attempt => 100 * (attempt + 1),
+        scheduler: retryScheduler,
     };
-    return { coordinator: new RuntimeCoordinator(dependencies), errors, runtimes, updates };
+    return { coordinator: new RuntimeCoordinator(dependencies), errors, retryScheduler, runtimes, updates };
 }
 
 test('starts one deduplicated runtime per used instance and maps ordered groups', async () => {
@@ -142,6 +171,18 @@ test('isolates instance failures and owns active runtime cleanup', async () => {
     const staleGroups = harness.updates.at(-1);
     assert.equal(staleGroups[0].status, 'stale');
     assert.equal(staleGroups[0].entities[0].value, '21');
+    assert.deepEqual(harness.retryScheduler.delays, [100]);
+    const failedRuntime = harness.runtimes.get('home');
+    harness.retryScheduler.runNext();
+    await flushPromises();
+    const recoveredRuntime = harness.runtimes.get('home');
+    assert.notEqual(recoveredRuntime, failedRuntime);
+    recoveredRuntime.onUpdate([
+        { entityId: 'sensor.temperature', value: '22', availability: 'available', unit: '°C' },
+        { entityId: 'sensor.humidity', value: '46', availability: 'available', unit: '%' },
+    ]);
+    assert.equal(harness.updates.at(-1)[0].status, 'ready');
+    assert.equal(harness.updates.at(-1)[0].entities[0].value, '22');
 
     harness.coordinator.stop();
     harness.coordinator.stop();
@@ -160,6 +201,7 @@ test('marks groups without configured entities ready without connecting', async 
 });
 
 test('marks rejected Home Assistant authentication explicitly', async () => {
+    const scheduler = new FakeRetryScheduler();
     const updates = [];
     const coordinator = new RuntimeCoordinator({
         credentials: { loadToken: async () => 'token' },
@@ -170,6 +212,8 @@ test('marks rejected Home Assistant authentication explicitly', async () => {
         subscribe: async () => { throw new Error('must not subscribe'); },
         onUpdate: groups => updates.push(groups),
         onError: () => {},
+        retryDelay: () => 100,
+        scheduler,
     });
 
     await coordinator.start({
@@ -179,6 +223,45 @@ test('marks rejected Home Assistant authentication explicitly', async () => {
     });
 
     assert.equal(updates.at(-1)[0].status, 'authentication-failed');
+    assert.deepEqual(scheduler.delays, []);
+});
+
+test('retries ordinary failures with increasing delays and cancels pending work', async () => {
+    const scheduler = new FakeRetryScheduler();
+    let attempts = 0;
+    const coordinator = new RuntimeCoordinator({
+        credentials: { loadToken: async () => 'token' },
+        createCancellation: () => new FakeCancellation(),
+        connect: async () => {
+            attempts++;
+            throw new Error('offline');
+        },
+        subscribe: async () => { throw new Error('must not subscribe'); },
+        onUpdate: () => {},
+        onError: () => {},
+        retryDelay: attempt => 100 * (attempt + 1),
+        scheduler,
+    });
+
+    await coordinator.start({
+        ...configuration,
+        instances: [configuration.instances[0]],
+        groups: [configuration.groups[0]],
+    });
+    assert.deepEqual(scheduler.delays, [100]);
+    scheduler.runNext();
+    await flushPromises();
+
+    assert.equal(attempts, 2);
+    assert.deepEqual(scheduler.delays, [100, 200]);
+    coordinator.stop();
+    assert.equal(scheduler.tasks.at(-1).cancelled, true);
+});
+
+test('calculates jittered exponential retry delays within the cap', () => {
+    assert.equal(calculateRetryDelay(0, () => 0), 750);
+    assert.equal(calculateRetryDelay(0, () => 1), 1250);
+    assert.equal(calculateRetryDelay(20, () => 1), 60_000);
 });
 
 test('stops stale startup work and supports a fresh restart', async () => {
@@ -200,6 +283,8 @@ test('stops stale startup work and supports a fresh restart', async () => {
         subscribe: async () => { throw new Error('must not subscribe'); },
         onUpdate: () => {},
         onError: () => {},
+        retryDelay: () => 100,
+        scheduler: new FakeRetryScheduler(),
     });
     const pendingConfiguration = {
         ...configuration,

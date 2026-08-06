@@ -25,7 +25,7 @@ export class ExtensionRuntime {
     readonly #settings: RuntimeSettings;
     readonly #store: RuntimeConfigurationStore;
     #generation = 0;
-    #settingsSignal = 0;
+    #settingsSignals: number[] = [];
 
     constructor(
         settings: RuntimeSettings,
@@ -42,15 +42,17 @@ export class ExtensionRuntime {
     }
 
     enable(): void {
-        this.#settingsSignal = this.#settings.connect('changed::configuration-json', () => this.#restart());
+        this.#settingsSignals = [
+            this.#settings.connect('changed::configuration-json', () => this.#restart()),
+            this.#settings.connect('changed::credential-revision', () => this.#restart()),
+        ];
         this.#restart();
     }
 
     disable(): void {
         this.#generation++;
-        if (this.#settingsSignal !== 0)
-            this.#settings.disconnect(this.#settingsSignal);
-        this.#settingsSignal = 0;
+        this.#settingsSignals.forEach(signal => this.#settings.disconnect(signal));
+        this.#settingsSignals = [];
         this.#coordinator.stop();
         this.#panel.destroy();
     }

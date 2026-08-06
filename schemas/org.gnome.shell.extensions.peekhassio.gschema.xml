@@ -6,5 +6,10 @@
       <summary>Peekhassio configuration</summary>
       <description>Versioned non-secret configuration shared by the preferences and Shell processes.</description>
     </key>
+    <key name="credential-revision" type="u">
+      <default>0</default>
+      <summary>Credential change revision</summary>
+      <description>Non-secret counter used to restart runtime authentication after a credential change.</description>
+    </key>
   </schema>
 </schemalist>

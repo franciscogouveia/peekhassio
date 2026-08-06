@@ -1,6 +1,7 @@
 import GLib from 'gi://GLib';
 
 export const CONFIGURATION_KEY = 'configuration-json';
+export const CREDENTIAL_REVISION_KEY = 'credential-revision';
 export const CONFIGURATION_VERSION = 1 as const;
 
 export interface EntityConfiguration {
@@ -31,6 +32,17 @@ export interface ConfigurationV1 {
 export interface StringSettings {
     get_string(key: string): string;
     set_string(key: string, value: string): boolean;
+}
+
+export interface RevisionSettings {
+    get_uint(key: string): number;
+    set_uint(key: string, value: number): boolean;
+}
+
+export function incrementCredentialRevision(settings: RevisionSettings): void {
+    const revision = settings.get_uint(CREDENTIAL_REVISION_KEY);
+    if (!settings.set_uint(CREDENTIAL_REVISION_KEY, (revision + 1) >>> 0))
+        throw new Error('Could not notify the extension about the credential change.');
 }
 
 function invariant(condition: boolean, message: string): asserts condition {
