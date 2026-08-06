@@ -8,16 +8,20 @@ import { runSafely } from './action-runner.js';
 import {
     ConfigurationStore,
     type ConfigurationV1,
+    type EntityConfiguration,
     type GroupConfiguration,
     type InstanceConfiguration,
     createDefaultConfiguration,
+    moveEntity,
     moveGroup,
     removeGroup,
+    removeEntity,
     removeInstance,
     upsertGroup,
+    upsertEntity,
     upsertInstance,
 } from './configuration.js';
-import { buildPreferencesView } from './preferences-view.js';
+import { buildEntityRows, buildPreferencesView } from './preferences-view.js';
 
 function messageFrom(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
@@ -133,16 +137,19 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
             });
             const upButton = this.#iconButton('go-up-symbolic', _('Move group up'));
             const downButton = this.#iconButton('go-down-symbolic', _('Move group down'));
+            const entitiesButton = this.#iconButton('view-list-symbolic', _('Manage entities'));
             const editButton = this.#iconButton('document-edit-symbolic', _('Edit group'));
             const deleteButton = this.#iconButton('user-trash-symbolic', _('Delete group'));
             upButton.sensitive = item.canMoveUp;
             downButton.sensitive = item.canMoveDown;
             upButton.connect('clicked', () => this.#runAction(() => this.#moveGroup(displayGroup, -1)));
             downButton.connect('clicked', () => this.#runAction(() => this.#moveGroup(displayGroup, 1)));
+            entitiesButton.connect('clicked', () => this.#runAction(() => this.#manageEntities(displayGroup.id)));
             editButton.connect('clicked', () => this.#runAction(() => this.#editGroup(displayGroup)));
             deleteButton.connect('clicked', () => this.#runAction(() => this.#deleteGroup(displayGroup)));
             row.add_suffix(upButton);
             row.add_suffix(downButton);
+            row.add_suffix(entitiesButton);
             row.add_suffix(editButton);
             row.add_suffix(deleteButton);
             group.add(row);
@@ -291,6 +298,131 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
 
     #moveGroup(group: GroupConfiguration, direction: -1 | 1): void {
         this.#persist(moveGroup(this.#configuration, group.id, direction), true);
+    }
+
+    #manageEntities(groupId: string): void {
+        const dialog = new Adw.PreferencesDialog();
+        let page: Adw.PreferencesPage | null = null;
+        const render = (): void => {
+            if (page)
+                dialog.remove(page);
+            const group = this.#configuration.groups.find(candidate => candidate.id === groupId);
+            if (!group)
+                throw new Error(`Invalid configuration: group id ${groupId} must exist`);
+            page = new Adw.PreferencesPage({ title: _('Entities') });
+            const rows = new Adw.PreferencesGroup({
+                title: group.name,
+                description: _('Entities appear in this order.'),
+            });
+            const addButton = this.#iconButton('list-add-symbolic', _('Add entity'));
+            addButton.connect('clicked', () => this.#runAction(() => this.#editEntity(dialog, groupId, render)));
+            rows.header_suffix = addButton;
+
+            const view = buildEntityRows(this.#configuration, groupId);
+            if (view.length === 0) {
+                rows.add(new Adw.ActionRow({
+                    title: _('No entities configured'),
+                    subtitle: _('Add a Home Assistant entity to this group.'),
+                }));
+            }
+            view.forEach((item) => {
+                const entity = group.entities.find(candidate => candidate.entityId === item.id)!;
+                const row = new Adw.ActionRow({ title: item.title, subtitle: _(item.subtitle) });
+                const upButton = this.#iconButton('go-up-symbolic', _('Move entity up'));
+                const downButton = this.#iconButton('go-down-symbolic', _('Move entity down'));
+                const editButton = this.#iconButton('document-edit-symbolic', _('Edit entity'));
+                const deleteButton = this.#iconButton('user-trash-symbolic', _('Delete entity'));
+                upButton.sensitive = item.canMoveUp;
+                downButton.sensitive = item.canMoveDown;
+                upButton.connect('clicked', () => this.#runAction(() => this.#persistEntityChange(
+                    moveEntity(this.#configuration, groupId, entity.entityId, -1), render)));
+                downButton.connect('clicked', () => this.#runAction(() => this.#persistEntityChange(
+                    moveEntity(this.#configuration, groupId, entity.entityId, 1), render)));
+                editButton.connect('clicked', () => this.#runAction(() => this.#editEntity(dialog, groupId, render, entity)));
+                deleteButton.connect('clicked', () => this.#runAction(() => this.#deleteEntity(dialog, groupId, entity, render)));
+                row.add_suffix(upButton);
+                row.add_suffix(downButton);
+                row.add_suffix(editButton);
+                row.add_suffix(deleteButton);
+                rows.add(row);
+            });
+            page.add(rows);
+            dialog.add(page);
+        };
+        render();
+        dialog.present(this.#window);
+    }
+
+    #editEntity(
+        parent: Adw.PreferencesDialog,
+        groupId: string,
+        refresh: () => void,
+        existing?: EntityConfiguration,
+    ): void {
+        const dialog = new Adw.AlertDialog({ heading: existing ? _('Edit entity') : _('Add entity') });
+        const fields = new Adw.PreferencesGroup();
+        const idRow = new Adw.EntryRow({ title: _('Entity ID'), text: existing?.entityId ?? '' });
+        const unitRow = new Adw.EntryRow({ title: _('Unit override (optional)'), text: existing?.unitOverride ?? '' });
+        fields.add(idRow);
+        fields.add(unitRow);
+        dialog.extra_child = fields;
+        dialog.add_response('cancel', _('Cancel'));
+        dialog.add_response('save', existing ? _('Save') : _('Add'));
+        dialog.close_response = 'cancel';
+        dialog.default_response = 'save';
+        dialog.set_response_appearance('save', Adw.ResponseAppearance.SUGGESTED);
+        let candidate: ConfigurationV1 | null = null;
+        const validate = (): void => {
+            try {
+                candidate = upsertEntity(this.#configuration, groupId, existing?.entityId ?? null, {
+                    entityId: idRow.text.trim(),
+                    unitOverride: unitRow.text,
+                });
+                dialog.body = '';
+                dialog.set_response_enabled('save', true);
+            }
+            catch (error) {
+                candidate = null;
+                dialog.body = messageFrom(error).replace('Invalid configuration: ', '');
+                dialog.set_response_enabled('save', false);
+            }
+        };
+        idRow.connect('changed', validate);
+        unitRow.connect('changed', validate);
+        validate();
+        dialog.connect('response', (_dialog, response) => this.#runAction(() => {
+            if (response === 'save' && candidate)
+                this.#persistEntityChange(candidate, refresh);
+        }));
+        dialog.present(parent);
+    }
+
+    #deleteEntity(
+        parent: Adw.PreferencesDialog,
+        groupId: string,
+        entity: EntityConfiguration,
+        refresh: () => void,
+    ): void {
+        const dialog = new Adw.AlertDialog({
+            heading: _('Delete “%s”?').format(entity.entityId),
+            body: _('This removes the entity from this group.'),
+        });
+        dialog.add_response('cancel', _('Cancel'));
+        dialog.add_response('delete', _('Delete'));
+        dialog.close_response = 'cancel';
+        dialog.set_response_appearance('delete', Adw.ResponseAppearance.DESTRUCTIVE);
+        dialog.connect('response', (_dialog, response) => this.#runAction(() => {
+            if (response === 'delete')
+                this.#persistEntityChange(removeEntity(this.#configuration, groupId, entity.entityId), refresh);
+        }));
+        dialog.present(parent);
+    }
+
+    #persistEntityChange(configuration: ConfigurationV1, refresh: () => void): void {
+        this.#store.save(configuration);
+        this.#configuration = configuration;
+        this.#renderPreferences(true);
+        refresh();
     }
 
     #deleteInstance(instance: InstanceConfiguration): void {

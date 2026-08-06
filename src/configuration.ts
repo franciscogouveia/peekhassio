@@ -101,11 +101,14 @@ export function parseConfigurationValue(value: unknown): ConfigurationV1 {
         invariant(Array.isArray(group.entities), `groups[${groupIndex}].entities must be an array`);
         groupIds.add(group.id);
 
+        const entityIds = new Set<string>();
         group.entities.forEach((entity, entityIndex) => {
             const path = `groups[${groupIndex}].entities[${entityIndex}]`;
             invariant(isRecord(entity), `${path} must be an object`);
             requireText(entity.entityId, `${path}.entityId`);
             invariant(/^[a-z0-9_]+\.[a-z0-9_]+$/.test(entity.entityId), `${path}.entityId must use domain.object_id`);
+            invariant(!entityIds.has(entity.entityId), `${path}.entityId must be unique within its group`);
+            entityIds.add(entity.entityId);
             if ('unitOverride' in entity)
                 requireText(entity.unitOverride, `${path}.unitOverride`);
         });
@@ -176,6 +179,57 @@ export function moveGroup(configuration: ConfigurationV1, groupId: string, direc
     groups[currentIndex] = groups[targetIndex]!;
     groups[targetIndex] = currentGroup;
     return parseConfigurationValue({ ...configuration, groups });
+}
+
+export function upsertEntity(
+    configuration: ConfigurationV1,
+    groupId: string,
+    previousEntityId: string | null,
+    entity: EntityConfiguration,
+): ConfigurationV1 {
+    const group = configuration.groups.find(candidate => candidate.id === groupId);
+    invariant(group !== undefined, `group id ${groupId} must exist`);
+    const existingIndex = previousEntityId === null
+        ? -1
+        : group.entities.findIndex(candidate => candidate.entityId === previousEntityId);
+    invariant(previousEntityId === null || existingIndex !== -1, `entity id ${previousEntityId} must exist`);
+    invariant(!group.entities.some((candidate, index) =>
+        candidate.entityId === entity.entityId && index !== existingIndex),
+    `entity id ${entity.entityId} must be unique within its group`);
+    const normalized = entity.unitOverride?.trim()
+        ? { ...entity, unitOverride: entity.unitOverride.trim() }
+        : { entityId: entity.entityId };
+    const entities = existingIndex === -1
+        ? [...group.entities, normalized]
+        : group.entities.map((candidate, index) => index === existingIndex ? normalized : candidate);
+    return upsertGroup(configuration, { ...group, entities });
+}
+
+export function removeEntity(configuration: ConfigurationV1, groupId: string, entityId: string): ConfigurationV1 {
+    const group = configuration.groups.find(candidate => candidate.id === groupId);
+    invariant(group !== undefined, `group id ${groupId} must exist`);
+    invariant(group.entities.some(entity => entity.entityId === entityId), `entity id ${entityId} must exist`);
+    return upsertGroup(configuration, {
+        ...group,
+        entities: group.entities.filter(entity => entity.entityId !== entityId),
+    });
+}
+
+export function moveEntity(
+    configuration: ConfigurationV1,
+    groupId: string,
+    entityId: string,
+    direction: -1 | 1,
+): ConfigurationV1 {
+    const group = configuration.groups.find(candidate => candidate.id === groupId);
+    invariant(group !== undefined, `group id ${groupId} must exist`);
+    const currentIndex = group.entities.findIndex(entity => entity.entityId === entityId);
+    invariant(currentIndex !== -1, `entity id ${entityId} must exist`);
+    const targetIndex = currentIndex + direction;
+    invariant(targetIndex >= 0 && targetIndex < group.entities.length, `entity id ${entityId} cannot move further`);
+    const entities = [...group.entities];
+    [entities[currentIndex], entities[targetIndex]] = [entities[targetIndex]!, entities[currentIndex]!];
+    return upsertGroup(configuration, { ...group, entities });
 }
 
 export function buildDashboardUrl(instance: InstanceConfiguration, group: GroupConfiguration): string {
