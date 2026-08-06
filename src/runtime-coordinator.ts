@@ -90,7 +90,7 @@ export class RuntimeCoordinator {
         const runtime = { cancellation: this.#dependencies.createCancellation() } as InstanceRuntime;
         this.#instances.set(instance.id, runtime);
         try {
-            const token = this.#dependencies.credentials.loadToken(instance.id);
+            const token = await this.#dependencies.credentials.loadToken(instance.id);
             runtime.session = await this.#dependencies.connect(instance, token, runtime.cancellation);
             if (!this.#isCurrent(generation, instance.id)) {
                 runtime.session.connection.close();

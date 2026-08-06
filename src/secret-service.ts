@@ -1,6 +1,11 @@
+import Gio from 'gi://Gio';
 import Secret from 'gi://Secret';
 
 import type { CredentialBackend } from './credential-store.js';
+
+Gio._promisify(Secret, 'password_clear', 'password_clear_finish');
+Gio._promisify(Secret, 'password_lookup', 'password_lookup_finish');
+Gio._promisify(Secret, 'password_store', 'password_store_finish');
 
 const SCHEMA = Secret.Schema.new(
     'eu.de-gouveia.Peekhassio.HomeAssistant',
@@ -13,16 +18,16 @@ function attributes(instanceId: string): { [key: string]: string } {
 }
 
 export class SecretServiceBackend implements CredentialBackend {
-    has(instanceId: string): boolean {
-        return Secret.password_lookup_sync(SCHEMA, attributes(instanceId), null) !== null;
+    async has(instanceId: string): Promise<boolean> {
+        return await Secret.password_lookup(SCHEMA, attributes(instanceId), null) !== null;
     }
 
-    load(instanceId: string): string | null {
-        return Secret.password_lookup_sync(SCHEMA, attributes(instanceId), null);
+    async load(instanceId: string): Promise<string | null> {
+        return await Secret.password_lookup(SCHEMA, attributes(instanceId), null);
     }
 
-    store(instanceId: string, token: string): boolean {
-        return Secret.password_store_sync(
+    async store(instanceId: string, token: string): Promise<boolean> {
+        return await Secret.password_store(
             SCHEMA,
             attributes(instanceId),
             Secret.COLLECTION_DEFAULT,
@@ -32,7 +37,7 @@ export class SecretServiceBackend implements CredentialBackend {
         );
     }
 
-    clear(instanceId: string): void {
-        Secret.password_clear_sync(SCHEMA, attributes(instanceId), null);
+    async clear(instanceId: string): Promise<void> {
+        await Secret.password_clear(SCHEMA, attributes(instanceId), null);
     }
 }

@@ -1,8 +1,8 @@
 export interface CredentialBackend {
-    has(instanceId: string): boolean;
-    load(instanceId: string): string | null;
-    store(instanceId: string, token: string): boolean;
-    clear(instanceId: string): void;
+    has(instanceId: string): Promise<boolean>;
+    load(instanceId: string): Promise<string | null>;
+    store(instanceId: string, token: string): Promise<boolean>;
+    clear(instanceId: string): Promise<void>;
 }
 
 export class CredentialStore {
@@ -12,18 +12,18 @@ export class CredentialStore {
         this.#backend = backend;
     }
 
-    hasToken(instanceId: string): boolean {
+    async hasToken(instanceId: string): Promise<boolean> {
         try {
-            return this.#backend.has(instanceId);
+            return await this.#backend.has(instanceId);
         }
         catch {
             throw new Error('Could not read the access token from Secret Service.');
         }
     }
 
-    loadToken(instanceId: string): string {
+    async loadToken(instanceId: string): Promise<string> {
         try {
-            const token = this.#backend.load(instanceId);
+            const token = await this.#backend.load(instanceId);
             if (token === null || token.trim() === '')
                 throw new Error();
             return token.trim();
@@ -33,11 +33,11 @@ export class CredentialStore {
         }
     }
 
-    saveToken(instanceId: string, token: string): void {
+    async saveToken(instanceId: string, token: string): Promise<void> {
         if (token.trim() === '')
             throw new Error('Access token must not be blank.');
         try {
-            if (!this.#backend.store(instanceId, token.trim()))
+            if (!await this.#backend.store(instanceId, token.trim()))
                 throw new Error();
         }
         catch {
@@ -45,9 +45,9 @@ export class CredentialStore {
         }
     }
 
-    clearToken(instanceId: string): void {
+    async clearToken(instanceId: string): Promise<void> {
         try {
-            this.#backend.clear(instanceId);
+            await this.#backend.clear(instanceId);
         }
         catch {
             throw new Error('Could not remove the access token from Secret Service.');
