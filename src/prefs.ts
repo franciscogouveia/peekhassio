@@ -7,9 +7,13 @@ import { ExtensionPreferences, gettext as _ } from 'resource:///org/gnome/Shell/
 import {
     ConfigurationStore,
     type ConfigurationV1,
+    type GroupConfiguration,
     type InstanceConfiguration,
     createDefaultConfiguration,
+    moveGroup,
+    removeGroup,
     removeInstance,
+    upsertGroup,
     upsertInstance,
 } from './configuration.js';
 
@@ -19,7 +23,7 @@ function messageFrom(error: unknown): string {
 
 export default class PeekhassioPreferences extends ExtensionPreferences {
     #configuration!: ConfigurationV1;
-    #page: Adw.PreferencesPage | null = null;
+    #pages: Adw.PreferencesPage[] = [];
     #store!: ConfigurationStore;
     #window!: Adw.PreferencesWindow;
 
@@ -28,21 +32,28 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
         this.#store = new ConfigurationStore(this.getSettings());
         try {
             this.#configuration = this.#store.load();
-            this.#renderInstances();
+            this.#renderPreferences();
         }
         catch (error) {
             this.#renderRecovery(messageFrom(error));
         }
     }
 
-    #replacePage(page: Adw.PreferencesPage): void {
-        if (this.#page)
-            this.#window.remove(this.#page);
-        this.#page = page;
-        this.#window.add(page);
+    #replacePages(pages: Adw.PreferencesPage[], visibleIndex = 0): void {
+        this.#pages.forEach(page => this.#window.remove(page));
+        this.#pages = pages;
+        pages.forEach(page => this.#window.add(page));
+        this.#window.visible_page = pages[visibleIndex]!;
     }
 
-    #renderInstances(): void {
+    #renderPreferences(showGroups = false): void {
+        this.#replacePages(
+            [this.#buildInstancesPage(), this.#buildGroupsPage()],
+            showGroups ? 1 : 0,
+        );
+    }
+
+    #buildInstancesPage(): Adw.PreferencesPage {
         const page = new Adw.PreferencesPage({
             title: _('Instances'),
             icon_name: 'network-server-symbolic',
@@ -83,7 +94,57 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
         });
 
         page.add(group);
-        this.#replacePage(page);
+        return page;
+    }
+
+    #buildGroupsPage(): Adw.PreferencesPage {
+        const page = new Adw.PreferencesPage({
+            title: _('Groups'),
+            icon_name: 'view-list-symbolic',
+        });
+        const group = new Adw.PreferencesGroup({
+            title: _('Display groups'),
+            description: _('Groups appear in this order in the top bar.'),
+        });
+        const addButton = this.#iconButton('list-add-symbolic', _('Add group'));
+        addButton.sensitive = this.#configuration.instances.length > 0;
+        addButton.connect('clicked', () => void this.#editGroup());
+        group.header_suffix = addButton;
+
+        if (this.#configuration.groups.length === 0) {
+            group.add(new Adw.ActionRow({
+                title: _('No groups configured'),
+                subtitle: this.#configuration.instances.length === 0
+                    ? _('Add a Home Assistant instance before creating a group.')
+                    : _('Add a display group to get started.'),
+            }));
+        }
+
+        this.#configuration.groups.forEach((displayGroup, index) => {
+            const instance = this.#configuration.instances.find(candidate => candidate.id === displayGroup.instanceId)!;
+            const row = new Adw.ActionRow({
+                title: displayGroup.name,
+                subtitle: `${instance.name} · ${displayGroup.dashboardPath}`,
+            });
+            const upButton = this.#iconButton('go-up-symbolic', _('Move group up'));
+            const downButton = this.#iconButton('go-down-symbolic', _('Move group down'));
+            const editButton = this.#iconButton('document-edit-symbolic', _('Edit group'));
+            const deleteButton = this.#iconButton('user-trash-symbolic', _('Delete group'));
+            upButton.sensitive = index > 0;
+            downButton.sensitive = index < this.#configuration.groups.length - 1;
+            upButton.connect('clicked', () => void this.#moveGroup(displayGroup, -1));
+            downButton.connect('clicked', () => void this.#moveGroup(displayGroup, 1));
+            editButton.connect('clicked', () => void this.#editGroup(displayGroup));
+            deleteButton.connect('clicked', () => void this.#deleteGroup(displayGroup));
+            row.add_suffix(upButton);
+            row.add_suffix(downButton);
+            row.add_suffix(editButton);
+            row.add_suffix(deleteButton);
+            group.add(row);
+        });
+
+        page.add(group);
+        return page;
     }
 
     #iconButton(iconName: string, tooltipText: string): Gtk.Button {
@@ -143,6 +204,84 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
         await this.#persist(candidate);
     }
 
+    async #editGroup(existing?: GroupConfiguration): Promise<void> {
+        const id = existing?.id ?? GLib.uuid_string_random();
+        const instanceNames = this.#configuration.instances
+            .map(instance => `${instance.name} · ${instance.baseUrl}`);
+        const selected = existing
+            ? this.#configuration.instances.findIndex(instance => instance.id === existing.instanceId)
+            : 0;
+        const dialog = new Adw.AlertDialog({
+            heading: existing ? _('Edit group') : _('Add group'),
+        });
+        const fields = new Adw.PreferencesGroup();
+        const instanceRow = new Adw.ComboRow({
+            title: _('Home Assistant instance'),
+            model: Gtk.StringList.new(instanceNames),
+            selected,
+        });
+        const nameRow = new Adw.EntryRow({ title: _('Name'), text: existing?.name ?? '' });
+        const pathRow = new Adw.EntryRow({ title: _('Dashboard path'), text: existing?.dashboardPath ?? '/' });
+        fields.add(instanceRow);
+        fields.add(nameRow);
+        fields.add(pathRow);
+        dialog.extra_child = fields;
+        dialog.add_response('cancel', _('Cancel'));
+        dialog.add_response('save', existing ? _('Save') : _('Add'));
+        dialog.close_response = 'cancel';
+        dialog.default_response = 'save';
+        dialog.set_response_appearance('save', Adw.ResponseAppearance.SUGGESTED);
+
+        let candidate: ConfigurationV1 | null = null;
+        const validate = (): void => {
+            const instance = this.#configuration.instances[instanceRow.selected];
+            try {
+                if (!instance)
+                    throw new Error(_('Select a Home Assistant instance.'));
+                candidate = upsertGroup(this.#configuration, {
+                    id,
+                    instanceId: instance.id,
+                    name: nameRow.text.trim(),
+                    dashboardPath: pathRow.text.trim(),
+                    entities: existing?.entities ?? [],
+                });
+                dialog.body = '';
+                dialog.set_response_enabled('save', true);
+            }
+            catch (error) {
+                candidate = null;
+                dialog.body = messageFrom(error).replace('Invalid configuration: ', '');
+                dialog.set_response_enabled('save', false);
+            }
+        };
+        instanceRow.connect('notify::selected', validate);
+        nameRow.connect('changed', validate);
+        pathRow.connect('changed', validate);
+        validate();
+
+        if (await dialog.choose(this.#window, null) !== 'save' || candidate === null)
+            return;
+        await this.#persist(candidate, true);
+    }
+
+    async #deleteGroup(group: GroupConfiguration): Promise<void> {
+        const dialog = new Adw.AlertDialog({
+            heading: _('Delete “%s”?').format(group.name),
+            body: _('This also removes every entity configured in this group.'),
+        });
+        dialog.add_response('cancel', _('Cancel'));
+        dialog.add_response('delete', _('Delete'));
+        dialog.close_response = 'cancel';
+        dialog.set_response_appearance('delete', Adw.ResponseAppearance.DESTRUCTIVE);
+        if (await dialog.choose(this.#window, null) !== 'delete')
+            return;
+        await this.#persist(removeGroup(this.#configuration, group.id), true);
+    }
+
+    async #moveGroup(group: GroupConfiguration, direction: -1 | 1): Promise<void> {
+        await this.#persist(moveGroup(this.#configuration, group.id, direction), true);
+    }
+
     async #deleteInstance(instance: InstanceConfiguration): Promise<void> {
         const references = this.#configuration.groups.filter(group => group.instanceId === instance.id).length;
         if (references > 0) {
@@ -166,11 +305,11 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
         await this.#persist(removeInstance(this.#configuration, instance.id));
     }
 
-    async #persist(configuration: ConfigurationV1): Promise<void> {
+    async #persist(configuration: ConfigurationV1, showGroups = false): Promise<void> {
         try {
             this.#store.save(configuration);
             this.#configuration = configuration;
-            this.#renderInstances();
+            this.#renderPreferences(showGroups);
         }
         catch (error) {
             await this.#showMessage(_('Could not save preferences'), messageFrom(error));
@@ -190,7 +329,7 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
         row.add_suffix(resetButton);
         group.add(row);
         page.add(group);
-        this.#replacePage(page);
+        this.#replacePages([page]);
     }
 
     async #resetConfiguration(): Promise<void> {
