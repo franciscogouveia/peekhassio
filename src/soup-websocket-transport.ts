@@ -4,17 +4,25 @@ import Soup from 'gi://Soup?version=3.0';
 
 import type {
     Cancellation,
+    WebSocketClosure,
     WebSocketConnection,
     WebSocketTransport,
 } from './home-assistant-client.js';
 
 Gio._promisify(Soup.Session.prototype, 'websocket_connect_async', 'websocket_connect_finish');
 
+const MAX_INCOMING_PAYLOAD_BYTES = 8 * 1024 * 1024;
+
 class SoupConnection implements WebSocketConnection {
     readonly #connection: Soup.WebsocketConnection;
+    #transportError = false;
 
     constructor(connection: Soup.WebsocketConnection) {
         this.#connection = connection;
+        connection.set_max_incoming_payload_size(MAX_INCOMING_PAYLOAD_BYTES);
+        connection.connect('error', () => {
+            this.#transportError = true;
+        });
     }
 
     sendText(message: string): void {
@@ -34,8 +42,11 @@ class SoupConnection implements WebSocketConnection {
         return () => this.#connection.disconnect(signal);
     }
 
-    onClosed(callback: () => void): () => void {
-        const signal = this.#connection.connect('closed', callback);
+    onClosed(callback: (closure: WebSocketClosure) => void): () => void {
+        const signal = this.#connection.connect('closed', () => callback({
+            code: this.#connection.get_close_code(),
+            transportError: this.#transportError,
+        }));
         return () => this.#connection.disconnect(signal);
     }
 }
