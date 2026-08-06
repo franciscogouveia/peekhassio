@@ -310,6 +310,7 @@ const tests = {
         const tokens = new Map();
         const store = new CredentialStore({
             has: instanceId => tokens.has(instanceId),
+            load: instanceId => tokens.get(instanceId) ?? null,
             store(instanceId, token) {
                 tokens.set(instanceId, token);
                 return true;
@@ -320,6 +321,7 @@ const tests = {
         JsUnit.assertFalse(store.hasToken('home'));
         store.saveToken('home', ' token-value ');
         JsUnit.assertTrue(store.hasToken('home'));
+        JsUnit.assertEquals('token-value', store.loadToken('home'));
         JsUnit.assertEquals('token-value', tokens.get('home'));
         store.clearToken('home');
         JsUnit.assertFalse(store.hasToken('home'));
@@ -329,15 +331,18 @@ const tests = {
         const leakedToken = 'secret-token-value';
         const failingStore = new CredentialStore({
             has: () => { throw new Error(leakedToken); },
+            load: () => { throw new Error(leakedToken); },
             store: () => { throw new Error(leakedToken); },
             clear: () => { throw new Error(leakedToken); },
         });
-        const rejectedStore = new CredentialStore({ has: () => false, store: () => false, clear: () => {} });
+        const rejectedStore = new CredentialStore({ has: () => false, load: () => null, store: () => false, clear: () => {} });
         const actions = [
             () => failingStore.hasToken('home'),
+            () => failingStore.loadToken('home'),
             () => failingStore.saveToken('home', leakedToken),
             () => failingStore.clearToken('home'),
             () => rejectedStore.saveToken('home', leakedToken),
+            () => rejectedStore.loadToken('home'),
         ];
 
         actions.forEach((action) => {

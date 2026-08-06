@@ -17,6 +17,10 @@ export class SecretServiceBackend implements CredentialBackend {
         return Secret.password_lookup_sync(SCHEMA, attributes(instanceId), null) !== null;
     }
 
+    load(instanceId: string): string | null {
+        return Secret.password_lookup_sync(SCHEMA, attributes(instanceId), null);
+    }
+
     store(instanceId: string, token: string): boolean {
         return Secret.password_store_sync(
             SCHEMA,
