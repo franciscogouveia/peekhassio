@@ -7,11 +7,14 @@ import {
     ConfigurationStore,
     buildDashboardUrl,
     createDefaultConfiguration,
+    moveGroup,
     parseConfigurationJson,
     parseConfigurationValue,
     removeInstance,
+    removeGroup,
     serializeConfiguration,
     upsertInstance,
+    upsertGroup,
 } from '../dist/configuration.js';
 import { assertThrowsMatching } from './assertions.mjs';
 
@@ -116,6 +119,50 @@ const tests = {
         JsUnit.assertEquals('home', removed.instances.map(instance => instance.id).join(','));
         assertThrowsMatching(() => removeInstance(validConfiguration, 'missing'), /instance id missing must exist/);
         assertThrowsMatching(() => removeInstance(validConfiguration, 'home'), /must not be referenced by a group/);
+    },
+    testAddsAndUpdatesGroupsWhilePreservingEntitiesAndOrder() {
+        const added = upsertGroup(validConfiguration, {
+            id: 'overview',
+            instanceId: 'cabin',
+            name: 'Overview',
+            dashboardPath: '/dashboard/overview',
+            entities: [],
+        });
+        const reassigned = upsertGroup(added, {
+            ...validConfiguration.groups[0],
+            instanceId: 'cabin',
+            name: 'Downstairs',
+        });
+
+        JsUnit.assertEquals('living-room,overview', reassigned.groups.map(group => group.id).join(','));
+        JsUnit.assertEquals('cabin', reassigned.groups[0].instanceId);
+        JsUnit.assertEquals(JSON.stringify(validConfiguration.groups[0].entities), JSON.stringify(reassigned.groups[0].entities));
+        assertThrowsMatching(
+            () => upsertGroup(validConfiguration, { ...validConfiguration.groups[0], id: 'invalid', instanceId: 'missing' }),
+            /must reference an instance/,
+        );
+        assertThrowsMatching(
+            () => upsertGroup(validConfiguration, { ...validConfiguration.groups[0], id: 'invalid', dashboardPath: 'dashboard' }),
+            /dashboardPath must start with one slash/,
+        );
+    },
+    testRemovesAndReordersGroups() {
+        const withSecondGroup = upsertGroup(validConfiguration, {
+            id: 'overview',
+            instanceId: 'cabin',
+            name: 'Overview',
+            dashboardPath: '/dashboard/overview',
+            entities: [],
+        });
+        const moved = moveGroup(withSecondGroup, 'overview', -1);
+        const removed = removeGroup(moved, 'living-room');
+
+        JsUnit.assertEquals('overview,living-room', moved.groups.map(group => group.id).join(','));
+        JsUnit.assertEquals('overview', removed.groups.map(group => group.id).join(','));
+        JsUnit.assertEquals(JSON.stringify(validConfiguration.instances), JSON.stringify(removed.instances));
+        assertThrowsMatching(() => moveGroup(moved, 'overview', -1), /cannot move further/);
+        assertThrowsMatching(() => moveGroup(moved, 'missing', 1), /group id missing must exist/);
+        assertThrowsMatching(() => removeGroup(moved, 'missing'), /group id missing must exist/);
     },
 };
 
