@@ -2,6 +2,7 @@
 
 import System from 'system';
 
+import { runSafely } from '../dist/action-runner.js';
 import {
     CONFIGURATION_KEY,
     ConfigurationStore,
@@ -197,6 +198,41 @@ const tests = {
         JsUnit.assertEquals('Overview', afterDelete.groupRows.map(row => row.title).join(','));
         JsUnit.assertFalse(afterDelete.groupRows[0].canMoveUp);
         JsUnit.assertFalse(afterDelete.groupRows[0].canMoveDown);
+    },
+    testRunsPreferencesActionsThroughAnErrorBoundary() {
+        let completed = false;
+        let reported = '';
+
+        runSafely(() => {
+            completed = true;
+        }, () => {
+            reported = 'unexpected';
+        }, () => {
+            reported = 'reporter failed';
+        });
+        runSafely(() => {
+            throw new Error('dialog failed');
+        }, (error) => {
+            reported = error.message;
+        }, () => {
+            reported = 'reporter failed';
+        });
+
+        JsUnit.assertTrue(completed);
+        JsUnit.assertEquals('dialog failed', reported);
+    },
+    testReportsWhenThePreferencesErrorReporterFails() {
+        let reportingFailure = '';
+
+        runSafely(() => {
+            throw new Error('action failed');
+        }, () => {
+            throw new Error('dialog failed');
+        }, (error) => {
+            reportingFailure = error.message;
+        });
+
+        JsUnit.assertEquals('dialog failed', reportingFailure);
     },
 };
 

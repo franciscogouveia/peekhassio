@@ -77,6 +77,15 @@ warnings and errors. Replace `<uuid>` with the UUID declared in
   references so repeated enable/disable cycles remain safe.
 - Prefer documented public GNOME Shell APIs. If a private Shell API is
   unavoidable, isolate it, explain why, and cover it with a compatibility test.
+- Never discard a Promise with `void`, leave a rejection unhandled, or rely on
+  the runtime to report it. Every Promise must have explicit ownership: await
+  it, return it to a caller that owns it, or adapt it at a tested boundary that
+  handles rejection. GObject signal callbacks do not own returned Promises;
+  keep them synchronous when the native signal API supports that design.
+- Route every user-triggered UI action through an error boundary. Unexpected
+  failures must be logged with sensitive values redacted and shown to the user
+  when the UI is still able to present an error. Error reporting must have a
+  logging fallback so a failure in the reporter is not silent.
 - Keep functions small, deterministic where possible, and focused on one
   meaningful responsibility. Keep code that changes together close together.
 - Follow established development practices without over-engineering. Introduce
@@ -95,6 +104,14 @@ warnings and errors. Replace `<uuid>` with the UUID declared in
 - Avoid over-mocking. Prefer real domain objects and deterministic boundaries,
   and include at least one counter-example for every changed behavior to prove
   that invalid or opposite cases are handled correctly.
+- Test user interactions from the signal boundary through resulting state and
+  error handling. Cover successful actions, validation failures, cancellation,
+  and unexpected exceptions. Headless view-state tests are useful but do not
+  replace native widget interaction tests on the supported GNOME version.
+- Validate the clean distributable artifact, not only `src/` or `dist/`.
+  Recursively verify that every relative runtime import is present in the
+  extension package, install that package on a GNOME 50 test host, and open and
+  interact with its preferences before release.
 - Exercise enable, disable, and re-enable behavior in a nested Shell session.
 - Test Home Assistant being unreachable, authentication failing, responses
   being malformed, and requests being cancelled during disable.
