@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { CredentialError } from '../dist/credential-store.js';
+import { AuthenticationError } from '../dist/home-assistant-client.js';
 import { RuntimeCoordinator } from '../dist/runtime-coordinator.js';
 
 const configuration = {
@@ -60,7 +62,7 @@ function createHarness(tokens = new Map([['home', 'home-token'], ['cabin', 'cabi
             loadToken(instanceId) {
                 const token = tokens.get(instanceId);
                 if (!token)
-                    throw new Error('Could not read the access token from Secret Service.');
+                    throw new CredentialError('Could not read the access token from Secret Service.');
                 return token;
             },
         },
@@ -107,6 +109,7 @@ test('starts one deduplicated runtime per used instance and maps ordered groups'
     ]);
     assert.equal(harness.runtimes.get('home').token, 'home-token');
     assert.deepEqual(harness.updates[0].map(group => group.id), ['downstairs', 'upstairs', 'cabin-lights']);
+    assert.deepEqual(harness.updates[0].map(group => group.status), ['connecting', 'connecting', 'connecting']);
 
     harness.runtimes.get('home').onUpdate([
         { entityId: 'sensor.humidity', value: '45', availability: 'available', unit: '%' },
@@ -117,6 +120,7 @@ test('starts one deduplicated runtime per used instance and maps ordered groups'
     assert.equal(latest[1].entities[0].unit, '°F');
     assert.equal(latest[0].entities[1].unit, '%');
     assert.equal(latest[2].entities[0].availability, 'missing');
+    assert.deepEqual(latest.map(group => group.status), ['ready', 'ready', 'connecting']);
 });
 
 test('isolates instance failures and owns active runtime cleanup', async () => {
@@ -124,15 +128,57 @@ test('isolates instance failures and owns active runtime cleanup', async () => {
     await harness.coordinator.start(configuration);
 
     assert.deepEqual(harness.errors, [['cabin', 'Could not read the access token from Secret Service.']]);
+    assert.equal(harness.updates.at(-1)[2].status, 'authentication-failed');
     assert.equal(harness.runtimes.get('home').cancellation.cancelled, false);
+    harness.runtimes.get('home').onUpdate([
+        { entityId: 'sensor.temperature', value: '21', availability: 'available', unit: '°C' },
+        { entityId: 'sensor.humidity', value: '45', availability: 'available', unit: '%' },
+    ]);
     harness.runtimes.get('home').onError(new Error('subscription failed'));
     assert.deepEqual(harness.errors.at(-1), ['home', 'subscription failed']);
     assert.equal(harness.runtimes.get('home').cancellation.cancelled, true);
     assert.equal(harness.runtimes.get('home').stopped, true);
     assert.equal(harness.runtimes.get('home').connection.closed, true);
+    const staleGroups = harness.updates.at(-1);
+    assert.equal(staleGroups[0].status, 'stale');
+    assert.equal(staleGroups[0].entities[0].value, '21');
 
     harness.coordinator.stop();
     harness.coordinator.stop();
+});
+
+test('marks groups without configured entities ready without connecting', async () => {
+    const harness = createHarness();
+    await harness.coordinator.start({
+        ...configuration,
+        instances: [configuration.instances[0]],
+        groups: [{ ...configuration.groups[0], entities: [] }],
+    });
+
+    assert.equal(harness.runtimes.size, 0);
+    assert.equal(harness.updates.at(-1)[0].status, 'ready');
+});
+
+test('marks rejected Home Assistant authentication explicitly', async () => {
+    const updates = [];
+    const coordinator = new RuntimeCoordinator({
+        credentials: { loadToken: async () => 'token' },
+        createCancellation: () => new FakeCancellation(),
+        connect: async () => {
+            throw new AuthenticationError('Home Assistant rejected the access token.');
+        },
+        subscribe: async () => { throw new Error('must not subscribe'); },
+        onUpdate: groups => updates.push(groups),
+        onError: () => {},
+    });
+
+    await coordinator.start({
+        ...configuration,
+        instances: [configuration.instances[0]],
+        groups: [configuration.groups[0]],
+    });
+
+    assert.equal(updates.at(-1)[0].status, 'authentication-failed');
 });
 
 test('stops stale startup work and supports a fresh restart', async () => {

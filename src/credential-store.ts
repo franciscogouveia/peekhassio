@@ -5,6 +5,8 @@ export interface CredentialBackend {
     clear(instanceId: string): Promise<void>;
 }
 
+export class CredentialError extends Error {}
+
 export class CredentialStore {
     readonly #backend: CredentialBackend;
 
@@ -17,7 +19,7 @@ export class CredentialStore {
             return await this.#backend.has(instanceId);
         }
         catch {
-            throw new Error('Could not read the access token from Secret Service.');
+            throw new CredentialError('Could not read the access token from Secret Service.');
         }
     }
 
@@ -29,7 +31,7 @@ export class CredentialStore {
             return token.trim();
         }
         catch {
-            throw new Error('Could not read the access token from Secret Service.');
+            throw new CredentialError('Could not read the access token from Secret Service.');
         }
     }
 

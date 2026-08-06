@@ -11,6 +11,7 @@ const groups = [
             { entityId: 'sensor.temperature', value: '21', availability: 'available', unit: '°C' },
             { entityId: 'sensor.humidity', value: null, availability: 'unknown', unit: '%' },
         ],
+        status: 'ready',
     },
     {
         id: 'porch',
@@ -19,8 +20,9 @@ const groups = [
             { entityId: 'light.porch', value: null, availability: 'unavailable' },
             { entityId: 'sensor.outdoor', value: null, availability: 'missing' },
         ],
+        status: 'ready',
     },
-    { id: 'empty', name: 'Empty', entities: [] },
+    { id: 'empty', name: 'Empty', entities: [], status: 'ready' },
 ];
 
 test('builds compact labels, accessible descriptions, and degraded state', () => {
@@ -44,6 +46,27 @@ test('builds compact labels, accessible descriptions, and degraded state', () =>
             degraded: false,
         },
     ]);
+});
+
+test('labels connecting, stale, and authentication failures without hiding values', () => {
+    const base = {
+        id: 'living-room',
+        name: 'Living room',
+        entities: [{ entityId: 'sensor.temperature', value: '21', availability: 'available', unit: '°C' }],
+    };
+    const views = buildPanelGroupViews([
+        { ...base, id: 'connecting', status: 'connecting' },
+        { ...base, id: 'stale', status: 'stale' },
+        { ...base, id: 'authentication', status: 'authentication-failed' },
+    ]);
+
+    assert.deepEqual(views.map(view => view.label), [
+        'Living room 21°C · Connecting…',
+        'Living room 21°C · Stale',
+        'Living room 21°C · Authentication required',
+    ]);
+    assert.equal(views.every(view => view.degraded), true);
+    assert.match(views[1].accessibleName, /status: Stale/);
 });
 
 test('updates stable widgets and rebuilds only for identity or order changes', () => {

@@ -8,6 +8,15 @@ export interface PanelGroupView {
     degraded: boolean;
 }
 
+function displayStatus(status: RuntimeGroupState['status']): string | null {
+    switch (status) {
+        case 'connecting': return 'Connecting…';
+        case 'stale': return 'Stale';
+        case 'authentication-failed': return 'Authentication required';
+        case 'ready': return null;
+    }
+}
+
 export interface PanelGroupWidget {
     update(view: PanelGroupView): void;
     destroy(): void;
@@ -38,14 +47,19 @@ function accessibleValue(state: EntityState): string {
 }
 
 export function buildPanelGroupViews(groups: RuntimeGroupState[]): PanelGroupView[] {
-    return groups.map(group => ({
-        id: group.id,
-        label: [group.name, ...group.entities.map(displayValue)].join(' '),
-        accessibleName: group.entities.length === 0
-            ? `${group.name}: no entities`
-            : `${group.name}: ${group.entities.map(accessibleValue).join(', ')}`,
-        degraded: group.entities.some(entity => entity.availability !== 'available'),
-    }));
+    return groups.map((group) => {
+        const status = displayStatus(group.status);
+        const values = group.entities.length === 0
+            ? 'no entities'
+            : group.entities.map(accessibleValue).join(', ');
+        return {
+            id: group.id,
+            label: [group.name, ...group.entities.map(displayValue), ...(status ? [`· ${status}`] : [])].join(' '),
+            accessibleName: `${group.name}: ${values}${status ? `; status: ${status}` : ''}`,
+            degraded: group.status !== 'ready'
+                || group.entities.some(entity => entity.availability !== 'available'),
+        };
+    });
 }
 
 export class PanelViewController {
