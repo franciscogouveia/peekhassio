@@ -133,6 +133,23 @@ export function createDefaultConfiguration(): ConfigurationV1 {
     return { version: CONFIGURATION_VERSION, instances: [], groups: [] };
 }
 
+export function upsertInstance(configuration: ConfigurationV1, instance: InstanceConfiguration): ConfigurationV1 {
+    const existingIndex = configuration.instances.findIndex(candidate => candidate.id === instance.id);
+    const instances = existingIndex === -1
+        ? [...configuration.instances, instance]
+        : configuration.instances.map(candidate => candidate.id === instance.id ? instance : candidate);
+    return parseConfigurationValue({ ...configuration, instances });
+}
+
+export function removeInstance(configuration: ConfigurationV1, instanceId: string): ConfigurationV1 {
+    invariant(configuration.instances.some(instance => instance.id === instanceId), `instance id ${instanceId} must exist`);
+    invariant(!configuration.groups.some(group => group.instanceId === instanceId), `instance id ${instanceId} must not be referenced by a group`);
+    return parseConfigurationValue({
+        ...configuration,
+        instances: configuration.instances.filter(instance => instance.id !== instanceId),
+    });
+}
+
 export function buildDashboardUrl(instance: InstanceConfiguration, group: GroupConfiguration): string {
     invariant(isHttpBaseUrl(instance.baseUrl), 'instance baseUrl must be an HTTP(S) base URL without a query or fragment');
     invariant(isDashboardPath(group.dashboardPath), 'group dashboardPath must start with one slash');
