@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { connectAuthenticated } from '../dist/home-assistant-client.js';
+import { subscribeEntityStates } from '../dist/entity-state-client.js';
 
 class FakeCancellation {
     cancelled = false;
@@ -149,4 +150,164 @@ test('handles timeout, cancellation, closure, connection failure, and invalid in
     await assert.rejects(connectAuthenticated(failingTransport, 'wss://private.example', 'token', new FakeCancellation(), new FakeScheduler(), 1), /^Error: Could not connect to Home Assistant\.$/);
     await assert.rejects(connectAuthenticated({}, 'wss://example', ' ', new FakeCancellation(), new FakeScheduler(), 1), /token is missing/);
     await assert.rejects(connectAuthenticated({}, 'wss://example', 'token', new FakeCancellation(), new FakeScheduler(), 0), /timeout must be positive/);
+});
+
+const configuredEntities = [
+    { entityId: 'sensor.temperature', unitOverride: '°F' },
+    { entityId: 'sensor.humidity' },
+    { entityId: 'sensor.missing' },
+];
+
+function state(entityId, value, unit) {
+    return {
+        entity_id: entityId,
+        state: value,
+        attributes: unit === undefined ? {} : { unit_of_measurement: unit },
+    };
+}
+
+function subscribe(connection, options = {}) {
+    const cancellation = options.cancellation ?? new FakeCancellation();
+    const scheduler = options.scheduler ?? new FakeScheduler();
+    const updates = [];
+    const errors = [];
+    return {
+        cancellation,
+        errors,
+        promise: subscribeEntityStates(
+            connection,
+            configuredEntities,
+            cancellation,
+            scheduler,
+            5000,
+            states => updates.push(JSON.parse(JSON.stringify(states))),
+            error => errors.push(error),
+        ),
+        scheduler,
+        updates,
+    };
+}
+
+test('loads ordered states, buffers events, filters entities, and applies units', async () => {
+    const connection = new FakeConnection();
+    const subscription = subscribe(connection);
+    assert.deepEqual(connection.messages.map(JSON.parse), [
+        { id: 1, type: 'subscribe_events', event_type: 'state_changed' },
+        { id: 2, type: 'get_states' },
+    ]);
+    connection.receive(JSON.stringify({
+        id: 1,
+        type: 'event',
+        event: { data: { entity_id: 'sensor.temperature', new_state: state('sensor.temperature', '71', '°C') } },
+    }));
+    connection.receive(JSON.stringify({
+        id: 1,
+        type: 'event',
+        event: { data: { entity_id: 'sensor.unconfigured', new_state: state('sensor.unconfigured', 'on') } },
+    }));
+    connection.receive(JSON.stringify({
+        id: 2,
+        type: 'result',
+        success: true,
+        result: [state('sensor.temperature', '70', '°C'), state('sensor.humidity', 'unknown', '%')],
+    }));
+    connection.receive(JSON.stringify({ id: 1, type: 'result', success: true, result: null }));
+
+    const result = await subscription.promise;
+    assert.deepEqual(result.states, [
+        { entityId: 'sensor.temperature', value: '71', availability: 'available', unit: '°F' },
+        { entityId: 'sensor.humidity', value: null, availability: 'unknown', unit: '%' },
+        { entityId: 'sensor.missing', value: null, availability: 'missing' },
+    ]);
+    assert.deepEqual(subscription.updates, [result.states]);
+    assert.equal(subscription.scheduler.callbacks.size, 0);
+
+    connection.receive(JSON.stringify({
+        id: 1,
+        type: 'event',
+        event: { data: { entity_id: 'sensor.humidity', new_state: state('sensor.humidity', 'unavailable', '%') } },
+    }));
+    assert.deepEqual(subscription.updates[1][1], {
+        entityId: 'sensor.humidity',
+        value: null,
+        availability: 'unavailable',
+        unit: '%',
+    });
+    connection.receive(JSON.stringify({
+        id: 1,
+        type: 'event',
+        event: { data: { entity_id: 'sensor.humidity', new_state: null } },
+    }));
+    assert.deepEqual(subscription.updates[2][1], {
+        entityId: 'sensor.humidity',
+        value: null,
+        availability: 'missing',
+    });
+    result.stop();
+    assert.equal(connection.messageCallbacks.size, 0);
+});
+
+test('reports initialization and active subscription failures without remote details', async () => {
+    for (const message of [
+        null,
+        '{',
+        '{"id":2,"type":"result","success":false,"error":{"message":"private state"}}',
+        '{"id":2,"type":"result","success":true,"result":{}}',
+        '{"id":9,"type":"result","success":true,"result":null}',
+    ]) {
+        const connection = new FakeConnection();
+        const subscription = subscribe(connection);
+        connection.receive(message);
+        await assert.rejects(subscription.promise, (error) => {
+            assert.doesNotMatch(error.message, /private state/);
+            return true;
+        });
+    }
+
+    const connection = new FakeConnection();
+    const active = subscribe(connection);
+    connection.receive('{"id":2,"type":"result","success":true,"result":[]}');
+    connection.receive('{"id":1,"type":"result","success":true,"result":null}');
+    await active.promise;
+    connection.receive('{"id":1,"type":"event","event":{"data":{"entity_id":7}}}');
+    assert.match(active.errors[0].message, /malformed entity event/);
+    assert.equal(connection.messageCallbacks.size, 0);
+});
+
+test('handles entity initialization timeout, cancellation, closure, and invalid timeout', async () => {
+    const timeout = subscribe(new FakeConnection());
+    timeout.scheduler.expire();
+    await assert.rejects(timeout.promise, /timed out/);
+
+    const cancelled = subscribe(new FakeConnection());
+    cancelled.cancellation.cancel();
+    await assert.rejects(cancelled.promise, /cancelled/);
+
+    const connection = new FakeConnection();
+    const closed = subscribe(connection);
+    connection.remoteClose();
+    await assert.rejects(closed.promise, /closed the entity connection/);
+
+    await assert.rejects(subscribeEntityStates(connection, [], new FakeCancellation(), new FakeScheduler(), 0, () => {}, () => {}), /timeout must be positive/);
+    const alreadyCancelled = new FakeCancellation();
+    alreadyCancelled.cancel();
+    await assert.rejects(subscribeEntityStates(connection, [], alreadyCancelled, new FakeScheduler(), 1, () => {}, () => {}), /cancelled/);
+});
+
+test('rejects when the initial state consumer fails', async () => {
+    const connection = new FakeConnection();
+    const promise = subscribeEntityStates(
+        connection,
+        [],
+        new FakeCancellation(),
+        new FakeScheduler(),
+        1,
+        () => {
+            throw new Error('consumer failed');
+        },
+        () => {},
+    );
+    connection.receive('{"id":2,"type":"result","success":true,"result":[]}');
+    connection.receive('{"id":1,"type":"result","success":true,"result":null}');
+    await assert.rejects(promise, /consumer failed/);
 });
