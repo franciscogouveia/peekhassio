@@ -9,7 +9,9 @@ import {
     createDefaultConfiguration,
     parseConfigurationJson,
     parseConfigurationValue,
+    removeInstance,
     serializeConfiguration,
+    upsertInstance,
 } from '../dist/configuration.js';
 import { assertThrowsMatching } from './assertions.mjs';
 
@@ -86,6 +88,34 @@ const tests = {
             'https://ha.example.com/lovelace/living-room',
             buildDashboardUrl({ ...validConfiguration.instances[0], baseUrl: 'https://ha.example.com/' }, group),
         );
+    },
+    testAddsAndUpdatesInstancesWithoutChangingTheirOrder() {
+        const added = upsertInstance(validConfiguration, {
+            id: 'office',
+            name: 'Office',
+            baseUrl: 'https://office.example.com',
+        });
+        const updated = upsertInstance(added, {
+            id: 'cabin',
+            name: 'Mountain cabin',
+            baseUrl: 'https://cabin.example.com',
+        });
+
+        JsUnit.assertEquals('office', added.instances[2].id);
+        JsUnit.assertEquals('home,cabin,office', updated.instances.map(instance => instance.id).join(','));
+        JsUnit.assertEquals('Mountain cabin', updated.instances[1].name);
+        JsUnit.assertEquals(JSON.stringify(validConfiguration.groups), JSON.stringify(updated.groups));
+        assertThrowsMatching(
+            () => upsertInstance(validConfiguration, { id: 'invalid', name: 'Invalid', baseUrl: 'not a URL' }),
+            /baseUrl must be an HTTP/,
+        );
+    },
+    testRemovesOnlyUnreferencedInstances() {
+        const removed = removeInstance(validConfiguration, 'cabin');
+
+        JsUnit.assertEquals('home', removed.instances.map(instance => instance.id).join(','));
+        assertThrowsMatching(() => removeInstance(validConfiguration, 'missing'), /instance id missing must exist/);
+        assertThrowsMatching(() => removeInstance(validConfiguration, 'home'), /must not be referenced by a group/);
     },
 };
 
