@@ -21,6 +21,7 @@ import {
     upsertEntity,
 } from '../dist/configuration.js';
 import { buildEntityRows, buildPreferencesView } from '../dist/preferences-view.js';
+import { CredentialStore } from '../dist/credential-store.js';
 import { assertThrowsMatching } from './assertions.mjs';
 
 const JsUnit = imports.jsUnit;
@@ -291,6 +292,51 @@ const tests = {
         });
 
         JsUnit.assertEquals('dialog failed', reportingFailure);
+    },
+    testStoresChecksAndClearsCredentialsThroughTheBoundary() {
+        const tokens = new Map();
+        const store = new CredentialStore({
+            has: instanceId => tokens.has(instanceId),
+            store(instanceId, token) {
+                tokens.set(instanceId, token);
+                return true;
+            },
+            clear: instanceId => tokens.delete(instanceId),
+        });
+
+        JsUnit.assertFalse(store.hasToken('home'));
+        store.saveToken('home', ' token-value ');
+        JsUnit.assertTrue(store.hasToken('home'));
+        JsUnit.assertEquals('token-value', tokens.get('home'));
+        store.clearToken('home');
+        JsUnit.assertFalse(store.hasToken('home'));
+        assertThrowsMatching(() => store.saveToken('home', '  '), /must not be blank/);
+    },
+    testRedactsCredentialBackendFailures() {
+        const leakedToken = 'secret-token-value';
+        const failingStore = new CredentialStore({
+            has: () => { throw new Error(leakedToken); },
+            store: () => { throw new Error(leakedToken); },
+            clear: () => { throw new Error(leakedToken); },
+        });
+        const rejectedStore = new CredentialStore({ has: () => false, store: () => false, clear: () => {} });
+        const actions = [
+            () => failingStore.hasToken('home'),
+            () => failingStore.saveToken('home', leakedToken),
+            () => failingStore.clearToken('home'),
+            () => rejectedStore.saveToken('home', leakedToken),
+        ];
+
+        actions.forEach((action) => {
+            try {
+                action();
+                JsUnit.fail('Expected credential operation to fail');
+            }
+            catch (error) {
+                JsUnit.assertFalse(error.message.includes(leakedToken));
+                JsUnit.assertTrue(error.message.includes('Secret Service'));
+            }
+        });
     },
 };
 

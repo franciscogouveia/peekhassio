@@ -5,6 +5,7 @@ import Gtk from 'gi://Gtk';
 import { ExtensionPreferences, gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 import { runSafely } from './action-runner.js';
+import { CredentialStore } from './credential-store.js';
 import {
     ConfigurationStore,
     type ConfigurationV1,
@@ -22,6 +23,7 @@ import {
     upsertInstance,
 } from './configuration.js';
 import { buildEntityRows, buildPreferencesView } from './preferences-view.js';
+import { SecretServiceBackend } from './secret-service.js';
 
 function messageFrom(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
@@ -29,6 +31,7 @@ function messageFrom(error: unknown): string {
 
 export default class PeekhassioPreferences extends ExtensionPreferences {
     #configuration!: ConfigurationV1;
+    #credentials!: CredentialStore;
     #pages: Adw.PreferencesPage[] = [];
     #store!: ConfigurationStore;
     #window!: Adw.PreferencesWindow;
@@ -36,6 +39,7 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
     async fillPreferencesWindow(window: Adw.PreferencesWindow): Promise<void> {
         this.#window = window;
         this.#store = new ConfigurationStore(this.getSettings());
+        this.#credentials = new CredentialStore(new SecretServiceBackend());
         try {
             this.#configuration = this.#store.load();
             this.#renderPreferences();
@@ -89,13 +93,16 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
             const instance = this.#configuration.instances.find(candidate => candidate.id === item.id)!;
             const row = new Adw.ActionRow({
                 title: item.title,
-                subtitle: item.subtitle,
+                subtitle: `${item.subtitle} · ${this.#tokenStatus(instance.id)}`,
                 subtitle_selectable: true,
             });
+            const tokenButton = this.#iconButton('dialog-password-symbolic', _('Manage access token'));
             const editButton = this.#iconButton('document-edit-symbolic', _('Edit instance'));
             const deleteButton = this.#iconButton('user-trash-symbolic', _('Delete instance'));
+            tokenButton.connect('clicked', () => this.#runAction(() => this.#editToken(instance)));
             editButton.connect('clicked', () => this.#runAction(() => this.#editInstance(instance)));
             deleteButton.connect('clicked', () => this.#runAction(() => this.#deleteInstance(instance)));
+            row.add_suffix(tokenButton);
             row.add_suffix(editButton);
             row.add_suffix(deleteButton);
             group.add(row);
@@ -444,8 +451,54 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
         dialog.close_response = 'cancel';
         dialog.set_response_appearance('delete', Adw.ResponseAppearance.DESTRUCTIVE);
         dialog.connect('response', (_dialog, response) => this.#runAction(() => {
-            if (response === 'delete')
+            if (response === 'delete') {
+                this.#credentials.clearToken(instance.id);
                 this.#persist(removeInstance(this.#configuration, instance.id));
+            }
+        }));
+        dialog.present(this.#window);
+    }
+
+    #tokenStatus(instanceId: string): string {
+        try {
+            return this.#credentials.hasToken(instanceId) ? _('Token configured') : _('Token missing');
+        }
+        catch {
+            console.error('Peekhassio could not read an access token from Secret Service.');
+            return _('Token status unavailable');
+        }
+    }
+
+    #editToken(instance: InstanceConfiguration): void {
+        const hasToken = this.#credentials.hasToken(instance.id);
+        const dialog = new Adw.AlertDialog({
+            heading: _('Access token for “%s”').format(instance.name),
+            body: _('The token is stored securely in GNOME Secret Service.'),
+        });
+        const fields = new Adw.PreferencesGroup();
+        const tokenRow = new Adw.PasswordEntryRow({ title: _('Long-lived access token') });
+        fields.add(tokenRow);
+        dialog.extra_child = fields;
+        dialog.add_response('cancel', _('Cancel'));
+        if (hasToken) {
+            dialog.add_response('remove', _('Remove token'));
+            dialog.set_response_appearance('remove', Adw.ResponseAppearance.DESTRUCTIVE);
+        }
+        dialog.add_response('save', hasToken ? _('Replace token') : _('Save token'));
+        dialog.close_response = 'cancel';
+        dialog.default_response = 'save';
+        dialog.set_response_appearance('save', Adw.ResponseAppearance.SUGGESTED);
+        const validate = (): void => dialog.set_response_enabled('save', tokenRow.text.trim() !== '');
+        tokenRow.connect('changed', validate);
+        validate();
+        dialog.connect('response', (_dialog, response) => this.#runAction(() => {
+            if (response === 'save')
+                this.#credentials.saveToken(instance.id, tokenRow.text);
+            else if (response === 'remove')
+                this.#credentials.clearToken(instance.id);
+            else
+                return;
+            this.#renderPreferences();
         }));
         dialog.present(this.#window);
     }
