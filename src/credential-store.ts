@@ -1,5 +1,6 @@
 export interface CredentialBackend {
     has(instanceId: string): boolean;
+    load(instanceId: string): string | null;
     store(instanceId: string, token: string): boolean;
     clear(instanceId: string): void;
 }
@@ -14,6 +15,18 @@ export class CredentialStore {
     hasToken(instanceId: string): boolean {
         try {
             return this.#backend.has(instanceId);
+        }
+        catch {
+            throw new Error('Could not read the access token from Secret Service.');
+        }
+    }
+
+    loadToken(instanceId: string): string {
+        try {
+            const token = this.#backend.load(instanceId);
+            if (token === null || token.trim() === '')
+                throw new Error();
+            return token.trim();
         }
         catch {
             throw new Error('Could not read the access token from Secret Service.');
