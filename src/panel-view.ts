@@ -30,7 +30,8 @@ function displayWarning(group: RuntimeGroupState): string | null {
     switch (group.status) {
         case 'connecting': return 'Connecting to Home Assistant.';
         case 'stale': return 'Home Assistant is unreachable. Showing last known values.';
-        case 'authentication-failed': return 'Authentication required.';
+        case 'authentication-failed':
+            return 'Authentication required. Set the instance token in Peekhassio settings.';
         case 'ready':
             return group.entities.some(entity => entity.availability !== 'available')
                 ? 'One or more entities are unavailable.'

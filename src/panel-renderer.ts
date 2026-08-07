@@ -109,7 +109,7 @@ class ShellGroupWidget implements PanelGroupWidget {
         view.entities.forEach((entity) => {
             const item = new PopupMenu.PopupBaseMenuItem({ reactive: false, can_focus: false });
             const details = new St.BoxLayout({ vertical: true, x_expand: true });
-            const current = new St.BoxLayout({ x_expand: true });
+            const current = new St.BoxLayout({ style: 'spacing: 12px;', x_expand: true });
             const id = new St.Label({ text: entity.id, x_expand: true });
             const value = new St.Label();
             const lastUpdate = new St.Label();

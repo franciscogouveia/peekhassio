@@ -79,7 +79,7 @@ test('keeps values compact and accessible status details off the panel', () => {
     assert.deepEqual(views.map(view => view.warning), [
         'Connecting to Home Assistant.',
         'Home Assistant is unreachable. Showing last known values.',
-        'Authentication required.',
+        'Authentication required. Set the instance token in Peekhassio settings.',
     ]);
     assert.equal(views.every(view => view.degraded), true);
     assert.match(views[1].accessibleName, /status: Stale/);
