@@ -3,7 +3,8 @@ import type { RuntimeGroupState } from './runtime-coordinator.js';
 
 export interface PanelGroupView {
     id: string;
-    label: string;
+    name: string;
+    values: string;
     accessibleName: string;
     degraded: boolean;
 }
@@ -31,11 +32,9 @@ function displayValue(state: EntityState): string {
         case 'available':
             return `${state.value!}${state.unit ?? ''}`;
         case 'unknown':
-            return '?';
         case 'unavailable':
-            return 'Unavailable';
         case 'missing':
-            return '—';
+            return 'N/A';
     }
 }
 
@@ -54,7 +53,8 @@ export function buildPanelGroupViews(groups: RuntimeGroupState[]): PanelGroupVie
             : group.entities.map(accessibleValue).join(', ');
         return {
             id: group.id,
-            label: [group.name, ...group.entities.map(displayValue), ...(status ? [`· ${status}`] : [])].join(' '),
+            name: group.name,
+            values: group.entities.map(displayValue).join(' '),
             accessibleName: `${group.name}: ${values}${status ? `; status: ${status}` : ''}`,
             degraded: group.status !== 'ready'
                 || group.entities.some(entity => entity.availability !== 'available'),
