@@ -1,79 +1,167 @@
 # Peekhassio
 
-Peekhassio is a GNOME Shell extension for viewing Home Assistant entity states
-directly in the GNOME top bar. It lets you peek at useful information without
-opening the Home Assistant dashboard.
+Peekhassio is a GNOME Shell extension that displays selected Home Assistant
+entity states directly in the GNOME top bar. It lets you peek at useful values
+without opening the Home Assistant dashboard.
 
-The name combines “peek” (to look into) with “Hassio” (a short name for Home
-Assistant), while sounding like “Picasso.”
+The name combines “peek” with “Hassio,” while sounding like “Picasso.”
 
-> [!IMPORTANT]
-> Peekhassio is in its initial development stage. The functionality below
-> describes the planned minimum viable product and is not implemented yet.
+Peekhassio has reached its initial MVP and is still pre-release software. It
+currently targets and has been manually tested with GNOME Shell 50 only.
 
-## Planned functionality
+## Current functionality
 
-Peekhassio will organize selected Home Assistant entities into compact,
-user-defined groups on the top bar. A group can represent a room or any other
-collection that is useful to the user:
+Peekhassio provides:
+
+- Multiple Home Assistant instances, authenticated with long-lived access
+  tokens.
+- User-defined top-bar groups containing manually configured entity IDs.
+- Ordered groups and entities.
+- Optional per-entity unit overrides; otherwise Home Assistant's reported unit
+  is used.
+- Initial values and live updates through Home Assistant's authenticated
+  [WebSocket API](https://developers.home-assistant.io/docs/api/websocket/).
+- Isolation between instances, stale-value presentation, and automatic
+  reconnection with bounded backoff.
+- Immediate runtime updates after configuration or credential changes.
+
+Group labels currently show the group name followed by its ordered entity
+values and units:
 
 ```text
-[Bathroom 27°C 50%] [Living room 25°C 45%] [Bedroom 26°C 46%]
+[Bathroom 27°C 50%] [Living room 25°C 45%]
 ```
 
-The first usable version will provide:
+Dashboard paths can be configured for groups, but opening dashboards is not yet
+implemented. Planned presentation improvements and a group details menu are
+tracked in [BACKLOG.md](BACKLOG.md).
 
-- User-defined groups containing any Home Assistant entity states.
-- Compact group pills showing the group name followed by values and units.
-- Per-entity unit overrides. When no override is configured, Peekhassio uses
-  the unit reported by Home Assistant.
-- Manual ordering of groups through the extension preferences.
-- Support for multiple Home Assistant instances. Each group belongs to one
-  configured instance, while the top bar may show groups from several instances.
-- A configurable dashboard or view path for each group. Peekhassio resolves the
-  path relative to the group's Home Assistant instance URL and opens it when the
-  user clicks the group pill.
-- Real-time values delivered through Home Assistant's authenticated
-  [WebSocket API](https://developers.home-assistant.io/docs/api/websocket/).
-- Automatic reconnection when an instance becomes unavailable. During an
-  interruption, the last known values remain visible and are marked as stale.
+## Requirements
 
-## Configuration and security
+- GNOME Shell 50
+- A reachable Home Assistant instance
+- A Home Assistant long-lived access token
+- GNOME Secret Service, normally provided by GNOME Keyring
 
-Peekhassio's preferences will manage Home Assistant instances, groups, entity
-selection, unit overrides, display order, and group dashboard paths. Each instance will
-authenticate with a long-lived access token stored through GNOME Secret Service
-rather than in plaintext configuration.
+Building from source additionally requires Node.js 24, npm 11, and the
+`gnome-extensions` command supplied by GNOME Shell tooling.
 
-## Technical direction
+## Install from source
 
-Peekhassio initially targets GNOME Shell 50. The extension is written in strict
-TypeScript and compiled to readable ES module JavaScript for GJS.
-
-## Development
-
-The local quality and build workflows require Node.js 24 and npm 11. Packaging,
-installation, and live testing additionally require GNOME Shell 50 and its
-`gnome-extensions` command.
+Clone the repository, then install the locked dependencies and the extension:
 
 ```sh
 npm ci
 npm run check
+npm run install:extension
+gnome-extensions enable peekhassio@de-gouveia.eu
 ```
 
-`npm run check` runs strict type-checking, linting, tests with coverage above
-80%, and a clean build. Generated extension files are written to `dist/`.
-GitLab CI runs the same quality gate for merge requests and `main`, reports the
-line coverage, and retains the generated `dist/` directory for one week.
-
-On a GNOME development machine, package and install the extension with:
+Open the preferences with the Extensions application or:
 
 ```sh
-npm run package
-npm run install:extension
+gnome-extensions prefs peekhassio@de-gouveia.eu
 ```
 
-The package and install commands cannot be validated on a host without GNOME
-Shell tooling.
+The install command creates a clean extension archive before installing it for
+the current user. A Shell session restart may be necessary when installing the
+extension for the first time.
+
+## Configure Peekhassio
+
+1. Add a Home Assistant instance with a name, base URL, and long-lived access
+   token.
+2. Add a display group and assign it to an instance.
+3. Use **Manage entities** on the group to add entity IDs in
+   `domain.object_id` form.
+4. Optionally override an entity's unit and reorder groups or entities.
+
+Changes are saved immediately. Non-secret configuration is stored in GSettings;
+access tokens are stored separately in GNOME Secret Service and never in the
+configuration JSON.
+
+Use an HTTPS base URL whenever possible. Configuring plain HTTP is allowed for
+explicit local-network setups, but it does not protect credentials or Home
+Assistant data in transit.
+
+## Development and testing
+
+The primary local workflows are:
+
+```sh
+npm test
+npm run check
+npm run build
+npm run package
+```
+
+`npm run check` performs strict type-checking, linting, and coverage validation.
+Aggregate line, branch, and function coverage must remain above 80%. Generated
+JavaScript is written to `dist/`; `npm run package` creates
+`peekhassio@de-gouveia.eu.shell-extension.zip`.
+
+Test authenticated Shell integration in a nested GNOME 50 Wayland session with
+a dedicated Secret Service provider:
+
+```sh
+dbus-run-session -- bash -c '
+    keyring_dir=$(mktemp -d "${XDG_RUNTIME_DIR:-/tmp}/peekhassio-keyring.XXXXXX")
+    gnome-keyring-daemon \
+        --foreground \
+        --components=secrets \
+        --control-directory="$keyring_dir" &
+    keyring_pid=$!
+
+    trap "kill $keyring_pid 2>/dev/null" EXIT
+
+    gnome-shell --devkit --wayland
+'
+```
+
+The dedicated keyring makes token storage available inside the isolated D-Bus
+session; it does not expose tokens from the normal desktop session. Configure
+test credentials through the nested session's preferences. The session may
+also use a different or temporary dconf environment, so persistent devkit
+configuration behavior remains under investigation. Use a normal GNOME session
+for persistence acceptance testing.
+
+Before merging runtime changes, manually exercise enable, disable, re-enable,
+configuration edits, and credential replacement after live values appear.
+Treat Shell warnings, critical messages, or coredumps as failures.
+
+## Troubleshooting
+
+If groups show an authentication error, confirm that every referenced instance
+has its own token in preferences. Tokens are not shared between instances.
+
+If storing or reading a token fails, verify that Secret Service is available in
+the same D-Bus session:
+
+```sh
+gdbus call --session \
+    --dest org.freedesktop.secrets \
+    --object-path /org/freedesktop/secrets \
+    --method org.freedesktop.DBus.Peer.Ping
+```
+
+Inspect Shell logs without printing tokens, URLs, authorization headers, or
+entity state:
+
+```sh
+journalctl -f _COMM=gnome-shell
+```
+
+## Uninstall
+
+Delete configured instances in preferences first if their stored tokens should
+also be removed. Then disable and uninstall the extension:
+
+```sh
+gnome-extensions disable peekhassio@de-gouveia.eu
+gnome-extensions uninstall peekhassio@de-gouveia.eu
+```
+
+Uninstalling the extension alone does not promise removal of GSettings data or
+Secret Service items.
 
 Peekhassio is licensed under [GPL-3.0-or-later](LICENSE).
