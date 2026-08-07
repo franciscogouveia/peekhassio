@@ -31,7 +31,10 @@ test('builds compact labels, menu details, accessible descriptions, and degraded
             id: 'living-room',
             name: 'Living room',
             values: ['21°C', 'N/A'],
-            warning: { title: 'One or more entities are unavailable.' },
+            warning: {
+                title: 'Entity data unavailable',
+                description: 'Check the affected entities in Home Assistant and Peekhassio settings.',
+            },
             entities: [
                 { id: 'sensor.temperature', value: '21°C', lastUpdate: 'time 1000' },
                 { id: 'sensor.humidity', value: 'N/A', lastUpdate: 'N/A' },
@@ -43,7 +46,10 @@ test('builds compact labels, menu details, accessible descriptions, and degraded
             id: 'porch',
             name: 'Porch',
             values: ['N/A', 'N/A'],
-            warning: { title: 'One or more entities are unavailable.' },
+            warning: {
+                title: 'Entity data unavailable',
+                description: 'Check the affected entities in Home Assistant and Peekhassio settings.',
+            },
             entities: [
                 { id: 'light.porch', value: 'N/A', lastUpdate: 'N/A' },
                 { id: 'sensor.outdoor', value: 'N/A', lastUpdate: 'N/A' },
@@ -77,8 +83,14 @@ test('keeps values compact and accessible status details off the panel', () => {
 
     assert.deepEqual(views.map(view => view.values), [['21°C'], ['21°C'], ['21°C']]);
     assert.deepEqual(views.map(view => view.warning), [
-        { title: 'Connecting to Home Assistant.' },
-        { title: 'Home Assistant is unreachable. Showing last known values.' },
+        {
+            title: 'Connecting',
+            description: 'Waiting for Home Assistant to provide entity values.',
+        },
+        {
+            title: 'Disconnected',
+            description: 'Home Assistant is unreachable. Showing last known values.',
+        },
         {
             title: 'Authentication required',
             description: 'Set the instance token in Peekhassio settings.',

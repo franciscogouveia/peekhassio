@@ -33,8 +33,16 @@ function displayStatus(status: RuntimeGroupState['status']): string | null {
 
 function displayWarning(group: RuntimeGroupState): PanelWarningView | null {
     switch (group.status) {
-        case 'connecting': return { title: 'Connecting to Home Assistant.' };
-        case 'stale': return { title: 'Home Assistant is unreachable. Showing last known values.' };
+        case 'connecting':
+            return {
+                title: 'Connecting',
+                description: 'Waiting for Home Assistant to provide entity values.',
+            };
+        case 'stale':
+            return {
+                title: 'Disconnected',
+                description: 'Home Assistant is unreachable. Showing last known values.',
+            };
         case 'authentication-failed':
             return {
                 title: 'Authentication required',
@@ -42,7 +50,10 @@ function displayWarning(group: RuntimeGroupState): PanelWarningView | null {
             };
         case 'ready':
             return group.entities.some(entity => entity.availability !== 'available')
-                ? { title: 'One or more entities are unavailable.' }
+                ? {
+                        title: 'Entity data unavailable',
+                        description: 'Check the affected entities in Home Assistant and Peekhassio settings.',
+                    }
                 : null;
     }
 }
