@@ -5,10 +5,15 @@ export interface PanelGroupView {
     id: string;
     name: string;
     values: string[];
-    warning: string | null;
+    warning: PanelWarningView | null;
     entities: PanelEntityView[];
     accessibleName: string;
     degraded: boolean;
+}
+
+export interface PanelWarningView {
+    title: string;
+    description?: string;
 }
 
 export interface PanelEntityView {
@@ -26,15 +31,18 @@ function displayStatus(status: RuntimeGroupState['status']): string | null {
     }
 }
 
-function displayWarning(group: RuntimeGroupState): string | null {
+function displayWarning(group: RuntimeGroupState): PanelWarningView | null {
     switch (group.status) {
-        case 'connecting': return 'Connecting to Home Assistant.';
-        case 'stale': return 'Home Assistant is unreachable. Showing last known values.';
+        case 'connecting': return { title: 'Connecting to Home Assistant.' };
+        case 'stale': return { title: 'Home Assistant is unreachable. Showing last known values.' };
         case 'authentication-failed':
-            return 'Authentication required. Set the instance token in Peekhassio settings.';
+            return {
+                title: 'Authentication required',
+                description: 'Set the instance token in Peekhassio settings.',
+            };
         case 'ready':
             return group.entities.some(entity => entity.availability !== 'available')
-                ? 'One or more entities are unavailable.'
+                ? { title: 'One or more entities are unavailable.' }
                 : null;
     }
 }

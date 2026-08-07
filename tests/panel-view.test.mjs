@@ -31,7 +31,7 @@ test('builds compact labels, menu details, accessible descriptions, and degraded
             id: 'living-room',
             name: 'Living room',
             values: ['21°C', 'N/A'],
-            warning: 'One or more entities are unavailable.',
+            warning: { title: 'One or more entities are unavailable.' },
             entities: [
                 { id: 'sensor.temperature', value: '21°C', lastUpdate: 'time 1000' },
                 { id: 'sensor.humidity', value: 'N/A', lastUpdate: 'N/A' },
@@ -43,7 +43,7 @@ test('builds compact labels, menu details, accessible descriptions, and degraded
             id: 'porch',
             name: 'Porch',
             values: ['N/A', 'N/A'],
-            warning: 'One or more entities are unavailable.',
+            warning: { title: 'One or more entities are unavailable.' },
             entities: [
                 { id: 'light.porch', value: 'N/A', lastUpdate: 'N/A' },
                 { id: 'sensor.outdoor', value: 'N/A', lastUpdate: 'N/A' },
@@ -77,9 +77,12 @@ test('keeps values compact and accessible status details off the panel', () => {
 
     assert.deepEqual(views.map(view => view.values), [['21°C'], ['21°C'], ['21°C']]);
     assert.deepEqual(views.map(view => view.warning), [
-        'Connecting to Home Assistant.',
-        'Home Assistant is unreachable. Showing last known values.',
-        'Authentication required. Set the instance token in Peekhassio settings.',
+        { title: 'Connecting to Home Assistant.' },
+        { title: 'Home Assistant is unreachable. Showing last known values.' },
+        {
+            title: 'Authentication required',
+            description: 'Set the instance token in Peekhassio settings.',
+        },
     ]);
     assert.equal(views.every(view => view.degraded), true);
     assert.match(views[1].accessibleName, /status: Stale/);

@@ -23,7 +23,9 @@ class ShellGroupWidget implements PanelGroupWidget {
         value: St.Label;
     }[] = [];
 
-    #warningItem: PopupMenu.PopupImageMenuItem | null = null;
+    #warningDescription: St.Label | null = null;
+    #warningItem: PopupMenu.PopupBaseMenuItem | null = null;
+    #warningTitle: St.Label | null = null;
     #valueLabels: St.Label[] = [];
 
     constructor(view: PanelGroupView, position: number) {
@@ -76,7 +78,9 @@ class ShellGroupWidget implements PanelGroupWidget {
             || ids.some((id, index) => id !== this.#entityRows[index]?.id))
             this.#rebuildMenu(view);
         this.#warningItem!.visible = view.warning !== null;
-        this.#warningItem!.label.text = view.warning ?? '';
+        this.#warningTitle!.text = view.warning?.title ?? '';
+        this.#warningDescription!.text = view.warning?.description ?? '';
+        this.#warningDescription!.visible = view.warning?.description !== undefined;
         view.entities.forEach((entity, index) => {
             const row = this.#entityRows[index]!;
             row.value.text = entity.value;
@@ -87,18 +91,19 @@ class ShellGroupWidget implements PanelGroupWidget {
     #rebuildMenu(view: PanelGroupView): void {
         this.#menu.removeAll();
         this.#entityRows = [];
-        this.#warningItem = new PopupMenu.PopupImageMenuItem(
-            '',
-            'dialog-warning-symbolic',
-            {
-                reactive: false,
-                activate: false,
-                hover: false,
-                style_class: null,
-                can_focus: false,
-            },
-        );
-        this.#warningItem.label.style = 'color: #f6d32d;';
+        this.#warningItem = new PopupMenu.PopupBaseMenuItem({ reactive: false, can_focus: false });
+        const warningIcon = new St.Icon({
+            icon_name: 'dialog-warning-symbolic',
+            style: 'color: #f6d32d;',
+            y_align: Clutter.ActorAlign.START,
+        });
+        const warningText = new St.BoxLayout({ vertical: true });
+        this.#warningTitle = new St.Label({ style: 'color: #f6d32d;' });
+        this.#warningDescription = new St.Label();
+        warningText.add_child(this.#warningTitle);
+        warningText.add_child(this.#warningDescription);
+        this.#warningItem.add_child(warningIcon);
+        this.#warningItem.add_child(warningText);
         this.#menu.addMenuItem(this.#warningItem);
         const emptyItem = new PopupMenu.PopupMenuItem('No entities configured', {
             reactive: false,
