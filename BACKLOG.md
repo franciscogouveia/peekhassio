@@ -1,6 +1,53 @@
 # Backlog
 
-Items are ordered by the dependency sequence for the first usable release.
+Peekhassio has reached its initial MVP: configured Home Assistant entity values
+are displayed in the GNOME top bar. Items are ordered by the next development
+sequence; dashboard navigation is an enhancement rather than an MVP requirement.
+
+## Document the MVP
+
+- Update the README to describe the implemented extension rather than an
+  initial-development project.
+- Clearly separate current behavior, planned enhancements, and known
+  development-environment limitations.
+- Document configuration, Secret Service token storage, runtime status, local
+  HTTP risks, installation, troubleshooting, and uninstall behavior.
+
+## Polish top-bar group presentation
+
+- Vertically center group labels within the GNOME top bar.
+- Keep the group name and ordered entity values compact.
+- Replace every value without an initial reading with `N/A`.
+- Show a yellow warning icon beside the group name whenever the group is
+  degraded, including authentication, connectivity, stale, missing, unknown,
+  and unavailable conditions.
+- Do not put verbose warning messages directly in the top bar.
+
+## Track received value timestamps
+
+- Record when Peekhassio receives each initial state or state-change event.
+- Preserve the last received value and timestamp when Home Assistant becomes
+  unreachable or the connection becomes stale.
+- Use `N/A` for both value and timestamp until Peekhassio has received an
+  initial value.
+- Keep timestamps as runtime state; do not infer them from Home Assistant's
+  `last_updated` field.
+
+## Add a group details menu
+
+- Open a dropdown below a group when its top-bar item is activated.
+- Show the full warning message at the top whenever the group is degraded.
+- List entities in configured order with their full entity ID, current or last
+  known value, and the time Peekhassio received that value.
+- Preserve last known entity details during outages and show `N/A` when no
+  initial value has been received.
+- Include a button that opens the group's configured dashboard URL.
+- Resolve the configured path against the assigned instance URL through the
+  existing validated URL boundary.
+- Route menu activation and dashboard launch failures through synchronous
+  signal callbacks and the tested Shell error boundary.
+- Follow GNOME Shell 50 and GNOME HIG conventions, including accessibility and
+  keyboard behavior, and capture visual evidence for review.
 
 ## Persist settings across devkit sessions
 
@@ -33,78 +80,6 @@ Acceptance criteria:
 - Verify missing, locked, and unavailable Secret Service behavior.
 - Document the expected limitations of isolated devkit D-Bus sessions.
 
-## Implement the Home Assistant WebSocket client
-
-- Connect to each configured instance over its WebSocket endpoint.
-- Authenticate with the corresponding Secret Service token.
-- Use HTTPS/WSS by default and honor only explicitly configured local HTTP.
-- Apply bounded connection and request timeouts.
-- Validate every protocol message before exposing it to extension state.
-- Handle unreachable hosts, authentication rejection, malformed messages, and
-  cancellation without logging URLs, tokens, headers, or entity state.
-- Keep transport and protocol boundaries deterministic and testable without a
-  live Home Assistant server.
-
-## Subscribe to configured entity states
-
-- Request initial states for the entity IDs used by enabled configuration.
-- Subscribe to state changes and update only affected entities and groups.
-- Preserve configured entity and group order independently of message order.
-- Apply unit overrides and otherwise use Home Assistant's unit of measurement.
-- Define display behavior for unavailable, unknown, missing, and malformed
-  entities.
-- Share one connection and subscription set per configured instance.
-
-## Model runtime and stale state
-
-- Derive immutable view state from configuration and validated Home Assistant
-  events.
-- Preserve the last known values during temporary disconnections.
-- Mark interrupted or outdated values as stale without presenting them as
-  current.
-- Keep one instance's failure isolated from groups belonging to other
-  instances.
-- Cover transitions for connecting, ready, stale, authentication failure, and
-  recovery.
-
-## Render groups in the GNOME top bar
-
-- Add compact group pills in configured order.
-- Show the group name followed by ordered entity values and units.
-- Keep labels readable for empty, missing, unavailable, and stale values.
-- Update existing actors instead of rebuilding the complete panel for every
-  entity event.
-- Follow GNOME Shell 50 and GNOME HIG conventions, including accessibility and
-  keyboard behavior.
-- Capture screenshots or a short recording for visual review.
-
-## Open configured dashboards
-
-- Open the group's dashboard URL when its pill is activated.
-- Resolve the configured path against the assigned instance URL using the
-  existing validated URL boundary.
-- Route activation through a synchronous signal callback and tested error
-  boundary.
-- Show a user-visible error, with a logging fallback, when launching fails.
-
-## Reconnect resiliently
-
-- Reconnect automatically after network interruption or Home Assistant restart.
-- Use bounded exponential backoff with jitter and avoid retry storms.
-- Stop retries for authentication failures until credentials change.
-- Resubscribe and reconcile current state after reconnecting.
-- Cancel connections, requests, subscriptions, timers, and retries during
-  `disable()`.
-
-## Complete the extension lifecycle
-
-- Initialize all Shell-process state in `enable()`.
-- Make `disable()` and re-enable safe after partial startup and runtime errors.
-- React to relevant configuration changes without requiring a Shell restart.
-- Remove actors, signals, GLib sources, network work, and references on disable.
-- Verify that preferences-process modules never enter the Shell process and
-  Shell-only modules never enter preferences.
-
 ## Expand native GNOME integration testing
 
 - Exercise preferences dialogs and native widget signals on GNOME Shell 50.
@@ -130,9 +105,6 @@ Acceptance criteria:
 
 ## Prepare the first release
 
-- Update the README so implemented and planned behavior are clearly separated.
-- Document configuration, token storage, local HTTP risks, troubleshooting,
-  installation, and uninstall behavior.
 - Review runtime dependencies, permissions, stored data, and extension review
   requirements.
 - Add release notes and rollback guidance.
