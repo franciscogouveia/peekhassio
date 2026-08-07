@@ -1,6 +1,8 @@
+import Gio from 'gi://Gio';
+
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
-import { ConfigurationStore, buildWebSocketUrl } from './configuration.js';
+import { ConfigurationStore, buildDashboardUrl, buildWebSocketUrl } from './configuration.js';
 import { CredentialStore } from './credential-store.js';
 import { subscribeEntityStates } from './entity-state-client.js';
 import { ExtensionRuntime } from './extension-runtime.js';
@@ -22,8 +24,15 @@ export default class PeekhassioExtension extends Extension {
         const credentials = new CredentialStore(new SecretServiceBackend());
         const scheduler = new GLibScheduler();
         const transport = new SoupWebSocketTransport();
-        const panel = new PanelViewController(new ShellPanelWidgetFactory());
+        const panel = new PanelViewController(new ShellPanelWidgetFactory({
+            openDashboard: (url) => {
+                if (!Gio.AppInfo.launch_default_for_uri(url, null))
+                    throw new Error('The default URI handler rejected the dashboard.');
+            },
+            openSettings: () => this.openPreferences(),
+        }));
         const coordinator = new RuntimeCoordinator({
+            buildDashboardUrl,
             credentials,
             createCancellation: () => new GioCancellation(),
             connect: (instance, token, cancellation) => connectAuthenticated(

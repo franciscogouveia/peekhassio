@@ -1,6 +1,7 @@
 import type {
     ConfigurationV1,
     EntityConfiguration,
+    GroupConfiguration,
     InstanceConfiguration,
 } from './configuration.js';
 import { CredentialError, type CredentialStore } from './credential-store.js';
@@ -27,6 +28,7 @@ export interface OwnedCancellation extends Cancellation {
 }
 
 export interface RuntimeGroupState {
+    dashboardUrl: string;
     id: string;
     name: string;
     entities: EntityState[];
@@ -34,6 +36,7 @@ export interface RuntimeGroupState {
 }
 
 export interface RuntimeDependencies {
+    buildDashboardUrl(instance: InstanceConfiguration, group: GroupConfiguration): string;
     credentials: CredentialStore;
     createCancellation(): OwnedCancellation;
     connect(instance: InstanceConfiguration, token: string, cancellation: Cancellation): Promise<AuthenticatedSession>;
@@ -76,12 +79,16 @@ export class RuntimeCoordinator {
     async start(configuration: ConfigurationV1): Promise<void> {
         this.stop();
         this.#configuration = configuration;
-        this.#groups = new Map(configuration.groups.map(group => [group.id, {
-            id: group.id,
-            name: group.name,
-            entities: group.entities.map(entity => missing(entity.entityId)),
-            status: 'connecting',
-        }]));
+        this.#groups = new Map(configuration.groups.map((group) => {
+            const instance = configuration.instances.find(candidate => candidate.id === group.instanceId)!;
+            return [group.id, {
+                dashboardUrl: this.#dependencies.buildDashboardUrl(instance, group),
+                id: group.id,
+                name: group.name,
+                entities: group.entities.map(entity => missing(entity.entityId)),
+                status: 'connecting',
+            }];
+        }));
         this.#emit();
         const generation = this.#generation;
         const starts = configuration.instances.map(instance =>
@@ -158,9 +165,9 @@ export class RuntimeCoordinator {
             return;
         const byId = new Map(states.map(state => [state.entityId, state]));
         configuration.groups.filter(group => group.instanceId === instanceId).forEach((group) => {
+            const current = this.#groups.get(group.id)!;
             this.#groups.set(group.id, {
-                id: group.id,
-                name: group.name,
+                ...current,
                 entities: group.entities.map((entity) => {
                     const state = byId.get(entity.entityId) ?? missing(entity.entityId);
                     return entity.unitOverride ? { ...state, unit: entity.unitOverride } : state;

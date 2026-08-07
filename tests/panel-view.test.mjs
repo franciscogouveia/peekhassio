@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { buildPanelGroupViews, PanelViewController } from '../dist/panel-view.js';
+import { buildPanelGroupViews, PanelViewController, runPanelAction } from '../dist/panel-view.js';
 
 const groups = [
     {
         id: 'living-room',
+        dashboardUrl: 'https://home.example/living-room',
         name: 'Living room',
         entities: [
             { entityId: 'sensor.temperature', value: '21', availability: 'available', receivedAt: 1_000, unit: '°C' },
@@ -15,6 +16,7 @@ const groups = [
     },
     {
         id: 'porch',
+        dashboardUrl: 'https://home.example/porch',
         name: 'Porch',
         entities: [
             { entityId: 'light.porch', value: null, availability: 'unavailable' },
@@ -22,12 +24,13 @@ const groups = [
         ],
         status: 'ready',
     },
-    { id: 'empty', name: 'Empty', entities: [], status: 'ready' },
+    { id: 'empty', dashboardUrl: 'https://home.example', name: 'Empty', entities: [], status: 'ready' },
 ];
 
 test('builds compact labels, menu details, accessible descriptions, and degraded state', () => {
     assert.deepEqual(buildPanelGroupViews(groups, timestamp => `time ${timestamp}`), [
         {
+            dashboardUrl: 'https://home.example/living-room',
             id: 'living-room',
             name: 'Living room',
             values: ['21°C', 'N/A'],
@@ -43,6 +46,7 @@ test('builds compact labels, menu details, accessible descriptions, and degraded
             degraded: true,
         },
         {
+            dashboardUrl: 'https://home.example/porch',
             id: 'porch',
             name: 'Porch',
             values: ['N/A', 'N/A'],
@@ -58,6 +62,7 @@ test('builds compact labels, menu details, accessible descriptions, and degraded
             degraded: true,
         },
         {
+            dashboardUrl: 'https://home.example',
             id: 'empty',
             name: 'Empty',
             values: [],
@@ -72,6 +77,7 @@ test('builds compact labels, menu details, accessible descriptions, and degraded
 test('keeps values compact and accessible status details off the panel', () => {
     const base = {
         id: 'living-room',
+        dashboardUrl: 'https://home.example/living-room',
         name: 'Living room',
         entities: [{ entityId: 'sensor.temperature', value: '21', availability: 'available', unit: '°C' }],
     };
@@ -99,6 +105,36 @@ test('keeps values compact and accessible status details off the panel', () => {
     assert.equal(views.every(view => view.degraded), true);
     assert.match(views[1].accessibleName, /status: Stale/);
     assert.match(views[2].accessibleName, /status: Authentication required/);
+});
+
+test('owns successful and failed panel actions', () => {
+    const events = [];
+    runPanelAction(
+        () => events.push('action'),
+        () => events.push('close'),
+        'failed',
+        message => events.push(message),
+        () => events.push('reporting failed'),
+    );
+    assert.deepEqual(events, ['action', 'close']);
+
+    runPanelAction(
+        () => { throw new Error('private detail'); },
+        () => events.push('must not close'),
+        'safe failure',
+        message => events.push(message),
+        () => events.push('reporting failed'),
+    );
+    assert.deepEqual(events, ['action', 'close', 'safe failure']);
+
+    runPanelAction(
+        () => { throw new Error('failure'); },
+        () => {},
+        'safe failure',
+        () => { throw new Error('reporter failure'); },
+        () => events.push('reporting failed'),
+    );
+    assert.equal(events.at(-1), 'reporting failed');
 });
 
 test('updates stable widgets and rebuilds only for identity or order changes', () => {
