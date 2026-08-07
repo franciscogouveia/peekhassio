@@ -1,111 +1,85 @@
 # Backlog
 
-Peekhassio has reached its initial MVP: configured Home Assistant entity values
-are displayed in the GNOME top bar. Items are ordered by the next development
-sequence; dashboard navigation is an enhancement rather than an MVP requirement.
+Peekhassio is feature-complete for its first release. Work before release is
+limited to validation, security review, packaging, and release documentation.
+New product ideas belong in a post-release milestone.
 
-## Document the MVP
+## Complete the GNOME Shell 50 acceptance pass
 
-- Update the README to describe the implemented extension rather than an
-  initial-development project.
-- Clearly separate current behavior, planned enhancements, and known
-  development-environment limitations.
-- Document configuration, Secret Service token storage, runtime status, local
-  HTTP risks, installation, troubleshooting, and uninstall behavior.
+- Install the clean packaged archive rather than testing only `src/` or `dist/`.
+- Configure multiple instances, tokens, groups, ordered entities, unit
+  overrides, and dashboard paths.
+- Verify initial values, live updates, receipt times, warnings, stale values,
+  reconnection, and recovery.
+- Exercise every group menu state and both Dashboard and Settings actions with
+  mouse and keyboard input.
+- Save instance, group, entity, and token changes while authenticated entity
+  connections are active.
+- Repeat enable, disable, and re-enable after live values appear.
+- Test partial startup, unreachable Home Assistant, authentication rejection,
+  malformed responses, and cancellation during disable.
+- Treat Shell exits, coredumps, new warnings or critical messages, leaked
+  timers, and lingering signal handlers as release failures.
+- Capture the GNOME Shell version, packaged commit, commands, results, and
+  visual evidence.
 
-## Polish top-bar group presentation
-
-- Vertically center group labels within the GNOME top bar.
-- Keep the group name and ordered entity values compact.
-- Replace every value without an initial reading with `N/A`.
-- Show a yellow warning icon beside the group name whenever the group is
-  degraded, including authentication, connectivity, stale, missing, unknown,
-  and unavailable conditions.
-- Do not put verbose warning messages directly in the top bar.
-
-## Track received value timestamps
-
-- Record when Peekhassio receives each initial state or state-change event.
-- Preserve the last received value and timestamp when Home Assistant becomes
-  unreachable or the connection becomes stale.
-- Use `N/A` for both value and timestamp until Peekhassio has received an
-  initial value.
-- Keep timestamps as runtime state; do not infer them from Home Assistant's
-  `last_updated` field.
-
-## Add a group details menu
-
-- Open a dropdown below a group when its top-bar item is activated.
-- Show the full warning message at the top whenever the group is degraded.
-- List entities in configured order with their full entity ID, current or last
-  known value, and the time Peekhassio received that value.
-- Preserve last known entity details during outages and show `N/A` when no
-  initial value has been received.
-- Include a button that opens the group's configured dashboard URL.
-- Resolve the configured path against the assigned instance URL through the
-  existing validated URL boundary.
-- Route menu activation and dashboard launch failures through synchronous
-  signal callbacks and the tested Shell error boundary.
-- Follow GNOME Shell 50 and GNOME HIG conventions, including accessibility and
-  keyboard behavior, and capture visual evidence for review.
-
-## Persist settings across devkit sessions
-
-Investigate and fix configuration loss after stopping and restarting a nested
-GNOME Shell session launched with:
-
-```sh
-dbus-run-session gnome-shell --devkit --wayland
-```
-
-Instances, groups, and entities are stored together in the
-`configuration-json` GSettings key. Determine whether its pending dconf write is
-lost when the temporary D-Bus session shuts down. If so, synchronize GSettings
-after successful saves without weakening normal error handling.
-
-Acceptance criteria:
-
-- Configure an instance, group, and entity in a devkit session.
-- Stop the complete nested session and start a new one.
-- Confirm that the configuration remains unchanged.
-- Cover successful synchronization and synchronization failures at the tested
-  settings boundary.
-- Confirm that reinstalling the extension does not reset the configuration.
-
-## Validate Secret Service integration on GNOME 50
-
-- Save, replace, and remove a token with a live GNOME keyring.
-- Confirm that tokens persist across preferences and login sessions without
-  appearing in GSettings, configuration JSON, or logs.
-- Verify missing, locked, and unavailable Secret Service behavior.
-- Document the expected limitations of isolated devkit D-Bus sessions.
-
-## Expand native GNOME integration testing
-
-- Exercise preferences dialogs and native widget signals on GNOME Shell 50.
-- Cover successful actions, validation, cancellation, unexpected exceptions,
-  and failed error reporting from the signal boundary.
-- Exercise enable, disable, and re-enable with an authenticated Home Assistant
-  connection after live entity values have appeared.
-- Save instance, group, and entity changes while that connection is active and
-  verify that runtime restart and native WebSocket teardown remain safe.
-- Exercise dashboard activation in a devkit Wayland session.
-- Treat new warnings, critical messages, leaked timers, and lingering signal
-  handlers as failures, and inspect the journal and coredumps after each run.
+Use a nested Wayland session with its own Secret Service provider as documented
+in the README. Also run persistence acceptance checks in a normal desktop
+session because isolated devkit sessions do not share its dconf or keyring.
 
 ## Validate the distributable artifact
 
-- Build the extension archive from a clean dependency installation.
-- Recursively verify every relative runtime import is included.
-- Install the archive on GNOME Shell 50 rather than testing only `src/` or
-  `dist/`.
-- Open and interact with installed preferences and run the full Shell lifecycle.
-- Record the exact supported Shell version in `metadata.json` only after the
-  validation succeeds.
+- Start from `npm ci` and a clean generated-artifact state.
+- Run `npm test`, `npm run check`, and `npm run package`.
+- Recursively verify that every relative runtime import exists in the archive.
+- Confirm that generated JavaScript remains readable, unbundled ESM suitable
+  for GJS and extensions.gnome.org review.
+- Install the resulting archive on GNOME Shell 50 and open its preferences
+  independently from the Shell process.
+- Verify install, upgrade, disable, re-enable, and uninstall workflows.
+
+## Complete security and stored-data review
+
+- Confirm that tokens appear only in GNOME Secret Service and never in
+  GSettings, configuration JSON, logs, archives, fixtures, or error messages.
+- Save, replace, and remove tokens with a live GNOME keyring.
+- Verify missing, locked, and unavailable Secret Service behavior.
+- Confirm that every network and protocol error remains redacted.
+- Review HTTPS defaults and the explicit warning for local HTTP connections.
+- Document what uninstalling removes and what remains in GSettings or Secret
+  Service.
+- Review extension permissions, dependencies, runtime imports, and GNOME Shell
+  extension-review requirements.
 
 ## Prepare the first release
 
-- Review runtime dependencies, permissions, stored data, and extension review
-  requirements.
-- Add release notes and rollback guidance.
-- Perform a final clean package install and GNOME Shell 50 acceptance pass.
+- Choose the first release version and update version-bearing metadata
+  consistently.
+- Update the README only if acceptance testing changes supported behavior or
+  installation guidance.
+- Add release notes covering features, GNOME Shell compatibility, security,
+  stored data, known limitations, upgrade behavior, and rollback guidance.
+- Create the final archive from a clean checkout and record its checksum.
+- Perform one final archive install and GNOME Shell 50 acceptance pass before
+  publishing.
+
+## Post-release engineering
+
+### Improve automated native integration testing
+
+- Evaluate a GJS/libsoup integration suite using a deterministic mocked Home
+  Assistant WebSocket server.
+- Evaluate a dedicated GNOME Shell 50 runner or VM for packaged extension
+  lifecycle and native actor testing.
+- Keep the documented manual acceptance gate until automated coverage can
+  detect Shell crashes, coredumps, warnings, and leaked native resources.
+
+### Investigate isolated devkit persistence
+
+- Determine whether dconf writes are lost or intentionally isolated when the
+  complete `dbus-run-session` development environment exits.
+- Verify instances, groups, and entities across repeated devkit sessions.
+- Add settings synchronization only if testing proves pending writes are lost;
+  preserve existing error handling.
+- Confirm separately that reinstalling the extension in a normal desktop
+  session does not reset configuration.
