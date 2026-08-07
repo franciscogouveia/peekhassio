@@ -4,7 +4,7 @@ import type { RuntimeGroupState } from './runtime-coordinator.js';
 export interface PanelGroupView {
     id: string;
     name: string;
-    values: string;
+    values: string[];
     accessibleName: string;
     degraded: boolean;
 }
@@ -54,7 +54,7 @@ export function buildPanelGroupViews(groups: RuntimeGroupState[]): PanelGroupVie
         return {
             id: group.id,
             name: group.name,
-            values: group.entities.map(displayValue).join(' '),
+            values: group.entities.map(displayValue),
             accessibleName: `${group.name}: ${values}${status ? `; status: ${status}` : ''}`,
             degraded: group.status !== 'ready'
                 || group.entities.some(entity => entity.availability !== 'available'),

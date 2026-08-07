@@ -30,21 +30,21 @@ test('builds compact labels, accessible descriptions, and degraded state', () =>
         {
             id: 'living-room',
             name: 'Living room',
-            values: '21°C N/A',
+            values: ['21°C', 'N/A'],
             accessibleName: 'Living room: sensor.temperature: 21 °C, sensor.humidity: unknown',
             degraded: true,
         },
         {
             id: 'porch',
             name: 'Porch',
-            values: 'N/A N/A',
+            values: ['N/A', 'N/A'],
             accessibleName: 'Porch: light.porch: unavailable, sensor.outdoor: missing',
             degraded: true,
         },
         {
             id: 'empty',
             name: 'Empty',
-            values: '',
+            values: [],
             accessibleName: 'Empty: no entities',
             degraded: false,
         },
@@ -63,7 +63,7 @@ test('keeps values compact and accessible status details off the panel', () => {
         { ...base, id: 'authentication', status: 'authentication-failed' },
     ]);
 
-    assert.deepEqual(views.map(view => view.values), ['21°C', '21°C', '21°C']);
+    assert.deepEqual(views.map(view => view.values), [['21°C'], ['21°C'], ['21°C']]);
     assert.equal(views.every(view => view.degraded), true);
     assert.match(views[1].accessibleName, /status: Stale/);
     assert.match(views[2].accessibleName, /status: Authentication required/);
@@ -99,7 +99,7 @@ test('updates stable widgets and rebuilds only for identity or order changes', (
         unit: '°C',
     }] }, groups[1], groups[2]]);
     assert.equal(created.length, 3);
-    assert.equal(firstWidgets[0].updates.at(-1).values, '22°C');
+    assert.deepEqual(firstWidgets[0].updates.at(-1).values, ['22°C']);
     assert.equal(firstWidgets[0].destroyed, false);
 
     controller.render([groups[1], groups[0], groups[2]]);
