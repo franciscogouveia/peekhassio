@@ -5,8 +5,16 @@ export interface PanelGroupView {
     id: string;
     name: string;
     values: string[];
+    warning: string | null;
+    entities: PanelEntityView[];
     accessibleName: string;
     degraded: boolean;
+}
+
+export interface PanelEntityView {
+    id: string;
+    value: string;
+    lastUpdate: string;
 }
 
 function displayStatus(status: RuntimeGroupState['status']): string | null {
@@ -15,6 +23,18 @@ function displayStatus(status: RuntimeGroupState['status']): string | null {
         case 'stale': return 'Stale';
         case 'authentication-failed': return 'Authentication required';
         case 'ready': return null;
+    }
+}
+
+function displayWarning(group: RuntimeGroupState): string | null {
+    switch (group.status) {
+        case 'connecting': return 'Connecting to Home Assistant.';
+        case 'stale': return 'Home Assistant is unreachable. Showing last known values.';
+        case 'authentication-failed': return 'Authentication required.';
+        case 'ready':
+            return group.entities.some(entity => entity.availability !== 'available')
+                ? 'One or more entities are unavailable.'
+                : null;
     }
 }
 
@@ -45,7 +65,10 @@ function accessibleValue(state: EntityState): string {
     return `${state.entityId}: ${value}`;
 }
 
-export function buildPanelGroupViews(groups: RuntimeGroupState[]): PanelGroupView[] {
+export function buildPanelGroupViews(
+    groups: RuntimeGroupState[],
+    formatTime = (receivedAt: number): string => new Date(receivedAt).toLocaleString(),
+): PanelGroupView[] {
     return groups.map((group) => {
         const status = displayStatus(group.status);
         const values = group.entities.length === 0
@@ -55,6 +78,12 @@ export function buildPanelGroupViews(groups: RuntimeGroupState[]): PanelGroupVie
             id: group.id,
             name: group.name,
             values: group.entities.map(displayValue),
+            warning: displayWarning(group),
+            entities: group.entities.map(entity => ({
+                id: entity.entityId,
+                value: displayValue(entity),
+                lastUpdate: entity.receivedAt === undefined ? 'N/A' : formatTime(entity.receivedAt),
+            })),
             accessibleName: `${group.name}: ${values}${status ? `; status: ${status}` : ''}`,
             degraded: group.status !== 'ready'
                 || group.entities.some(entity => entity.availability !== 'available'),
