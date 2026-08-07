@@ -1,3 +1,4 @@
+import Clutter from 'gi://Clutter';
 import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -11,19 +12,36 @@ import type {
 
 class ShellGroupWidget implements PanelGroupWidget {
     readonly #button: PanelMenu.Button;
-    readonly #label: St.Label;
+    readonly #name: St.Label;
+    readonly #values: St.Label;
+    readonly #warning: St.Icon;
 
     constructor(view: PanelGroupView, position: number) {
         this.#button = new PanelMenu.Button(0.5, view.accessibleName, true);
-        this.#label = new St.Label();
-        this.#button.add_child(this.#label);
+        const content = new St.BoxLayout({
+            style: 'spacing: 4px;',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        this.#name = new St.Label({ y_align: Clutter.ActorAlign.CENTER });
+        this.#warning = new St.Icon({
+            icon_name: 'dialog-warning-symbolic',
+            icon_size: 16,
+            style: 'color: #f6d32d;',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        this.#values = new St.Label({ y_align: Clutter.ActorAlign.CENTER });
+        content.add_child(this.#name);
+        content.add_child(this.#warning);
+        content.add_child(this.#values);
+        this.#button.add_child(content);
         Main.panel.addToStatusArea(`peekhassio-${view.id}`, this.#button, position, 'right');
         this.update(view);
     }
 
     update(view: PanelGroupView): void {
-        this.#label.text = view.label;
-        this.#label.opacity = view.degraded ? 160 : 255;
+        this.#name.text = view.name;
+        this.#values.text = view.values;
+        this.#warning.visible = view.degraded;
         this.#button.set_accessible_name(view.accessibleName);
     }
 

@@ -29,26 +29,29 @@ test('builds compact labels, accessible descriptions, and degraded state', () =>
     assert.deepEqual(buildPanelGroupViews(groups), [
         {
             id: 'living-room',
-            label: 'Living room 21°C ?',
+            name: 'Living room',
+            values: '21°C N/A',
             accessibleName: 'Living room: sensor.temperature: 21 °C, sensor.humidity: unknown',
             degraded: true,
         },
         {
             id: 'porch',
-            label: 'Porch Unavailable —',
+            name: 'Porch',
+            values: 'N/A N/A',
             accessibleName: 'Porch: light.porch: unavailable, sensor.outdoor: missing',
             degraded: true,
         },
         {
             id: 'empty',
-            label: 'Empty',
+            name: 'Empty',
+            values: '',
             accessibleName: 'Empty: no entities',
             degraded: false,
         },
     ]);
 });
 
-test('labels connecting, stale, and authentication failures without hiding values', () => {
+test('keeps values compact and accessible status details off the panel', () => {
     const base = {
         id: 'living-room',
         name: 'Living room',
@@ -60,13 +63,10 @@ test('labels connecting, stale, and authentication failures without hiding value
         { ...base, id: 'authentication', status: 'authentication-failed' },
     ]);
 
-    assert.deepEqual(views.map(view => view.label), [
-        'Living room 21°C · Connecting…',
-        'Living room 21°C · Stale',
-        'Living room 21°C · Authentication required',
-    ]);
+    assert.deepEqual(views.map(view => view.values), ['21°C', '21°C', '21°C']);
     assert.equal(views.every(view => view.degraded), true);
     assert.match(views[1].accessibleName, /status: Stale/);
+    assert.match(views[2].accessibleName, /status: Authentication required/);
 });
 
 test('updates stable widgets and rebuilds only for identity or order changes', () => {
@@ -99,7 +99,7 @@ test('updates stable widgets and rebuilds only for identity or order changes', (
         unit: '°C',
     }] }, groups[1], groups[2]]);
     assert.equal(created.length, 3);
-    assert.equal(firstWidgets[0].updates.at(-1).label, 'Living room 22°C');
+    assert.equal(firstWidgets[0].updates.at(-1).values, '22°C');
     assert.equal(firstWidgets[0].destroyed, false);
 
     controller.render([groups[1], groups[0], groups[2]]);
