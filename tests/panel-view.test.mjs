@@ -8,7 +8,7 @@ const groups = [
         id: 'living-room',
         name: 'Living room',
         entities: [
-            { entityId: 'sensor.temperature', value: '21', availability: 'available', unit: '°C' },
+            { entityId: 'sensor.temperature', value: '21', availability: 'available', receivedAt: 1_000, unit: '°C' },
             { entityId: 'sensor.humidity', value: null, availability: 'unknown', unit: '%' },
         ],
         status: 'ready',
@@ -25,12 +25,20 @@ const groups = [
     { id: 'empty', name: 'Empty', entities: [], status: 'ready' },
 ];
 
-test('builds compact labels, accessible descriptions, and degraded state', () => {
-    assert.deepEqual(buildPanelGroupViews(groups), [
+test('builds compact labels, menu details, accessible descriptions, and degraded state', () => {
+    assert.deepEqual(buildPanelGroupViews(groups, timestamp => `time ${timestamp}`), [
         {
             id: 'living-room',
             name: 'Living room',
             values: ['21°C', 'N/A'],
+            warning: {
+                title: 'Entity data unavailable',
+                description: 'Check the affected entities in Home Assistant and Peekhassio settings.',
+            },
+            entities: [
+                { id: 'sensor.temperature', value: '21°C', lastUpdate: 'time 1000' },
+                { id: 'sensor.humidity', value: 'N/A', lastUpdate: 'N/A' },
+            ],
             accessibleName: 'Living room: sensor.temperature: 21 °C, sensor.humidity: unknown',
             degraded: true,
         },
@@ -38,6 +46,14 @@ test('builds compact labels, accessible descriptions, and degraded state', () =>
             id: 'porch',
             name: 'Porch',
             values: ['N/A', 'N/A'],
+            warning: {
+                title: 'Entity data unavailable',
+                description: 'Check the affected entities in Home Assistant and Peekhassio settings.',
+            },
+            entities: [
+                { id: 'light.porch', value: 'N/A', lastUpdate: 'N/A' },
+                { id: 'sensor.outdoor', value: 'N/A', lastUpdate: 'N/A' },
+            ],
             accessibleName: 'Porch: light.porch: unavailable, sensor.outdoor: missing',
             degraded: true,
         },
@@ -45,6 +61,8 @@ test('builds compact labels, accessible descriptions, and degraded state', () =>
             id: 'empty',
             name: 'Empty',
             values: [],
+            warning: null,
+            entities: [],
             accessibleName: 'Empty: no entities',
             degraded: false,
         },
@@ -64,6 +82,20 @@ test('keeps values compact and accessible status details off the panel', () => {
     ]);
 
     assert.deepEqual(views.map(view => view.values), [['21°C'], ['21°C'], ['21°C']]);
+    assert.deepEqual(views.map(view => view.warning), [
+        {
+            title: 'Connecting',
+            description: 'Waiting for Home Assistant to provide entity values.',
+        },
+        {
+            title: 'Disconnected',
+            description: 'Home Assistant is unreachable. Showing last known values.',
+        },
+        {
+            title: 'Authentication required',
+            description: 'Set the instance token in Peekhassio settings.',
+        },
+    ]);
     assert.equal(views.every(view => view.degraded), true);
     assert.match(views[1].accessibleName, /status: Stale/);
     assert.match(views[2].accessibleName, /status: Authentication required/);
