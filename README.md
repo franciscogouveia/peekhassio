@@ -6,10 +6,11 @@ without opening the Home Assistant dashboard.
 
 The name combines “peek” with “Hassio,” while sounding like “Picasso.”
 
-Peekhassio has reached its initial MVP and is still pre-release software. It
-currently targets and has been manually tested with GNOME Shell 50 only.
+Peekhassio is feature-complete for its first release and is currently undergoing
+release hardening. It targets and has been manually tested with GNOME Shell 50
+only.
 
-## Current functionality
+## Features
 
 Peekhassio provides:
 
@@ -24,6 +25,12 @@ Peekhassio provides:
 - Isolation between instances, stale-value presentation, and automatic
   reconnection with bounded backoff.
 - Immediate runtime updates after configuration or credential changes.
+- Compact warning indicators with actionable details when an instance or entity
+  is degraded.
+- Group dropdowns showing full entity IDs, current or last-known values, and the
+  time Peekhassio received each value.
+- Icon actions for opening a group's configured Home Assistant dashboard and
+  Peekhassio settings.
 
 Group labels currently show the group name followed by its ordered entity
 values and units:
@@ -32,9 +39,9 @@ values and units:
 [Bathroom 27°C 50%] [Living room 25°C 45%]
 ```
 
-Dashboard paths can be configured for groups, but opening dashboards is not yet
-implemented. Planned presentation improvements and a group details menu are
-tracked in [BACKLOG.md](BACKLOG.md).
+The feature set intended for the first release is complete. Remaining release
+validation and post-release engineering work are tracked in
+[BACKLOG.md](BACKLOG.md).
 
 ## Requirements
 
