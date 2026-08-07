@@ -40,6 +40,7 @@ export default class PeekhassioExtension extends Extension {
                 cancellation,
                 scheduler,
                 CONNECTION_TIMEOUT_MILLISECONDS,
+                Date.now,
                 onUpdate,
                 onError,
             ),
