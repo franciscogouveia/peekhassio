@@ -10,13 +10,22 @@ import type {
     PanelGroupWidget,
     PanelWidgetFactory,
 } from './panel-view.js';
+import { runPanelAction } from './panel-view.js';
+
+export interface ShellPanelActions {
+    openDashboard(url: string): void;
+    openSettings(): void;
+}
 
 class ShellGroupWidget implements PanelGroupWidget {
+    readonly #actions: ShellPanelActions;
     readonly #button: PanelMenu.Button;
     readonly #menu: PopupMenu.PopupMenu;
     readonly #name: St.Label;
     readonly #values: St.BoxLayout;
     readonly #warning: St.Icon;
+    #actionError: PopupMenu.PopupMenuItem | null = null;
+    #dashboardUrl = '';
     #entityRows: {
         id: string;
         lastUpdate: St.Label;
@@ -28,7 +37,8 @@ class ShellGroupWidget implements PanelGroupWidget {
     #warningTitle: St.Label | null = null;
     #valueLabels: St.Label[] = [];
 
-    constructor(view: PanelGroupView, position: number) {
+    constructor(view: PanelGroupView, position: number, actions: ShellPanelActions) {
+        this.#actions = actions;
         this.#button = new PanelMenu.Button(0.5, view.accessibleName);
         this.#menu = this.#button.menu as PopupMenu.PopupMenu;
         const content = new St.BoxLayout({
@@ -56,6 +66,7 @@ class ShellGroupWidget implements PanelGroupWidget {
     }
 
     update(view: PanelGroupView): void {
+        this.#dashboardUrl = view.dashboardUrl;
         this.#name.text = view.name;
         while (this.#valueLabels.length > view.values.length)
             this.#valueLabels.pop()!.destroy();
@@ -74,7 +85,7 @@ class ShellGroupWidget implements PanelGroupWidget {
 
     #updateMenu(view: PanelGroupView): void {
         const ids = view.entities.map(entity => entity.id);
-        if (ids.length !== this.#entityRows.length
+        if (this.#warningItem === null || ids.length !== this.#entityRows.length
             || ids.some((id, index) => id !== this.#entityRows[index]?.id))
             this.#rebuildMenu(view);
         this.#warningItem!.visible = view.warning !== null;
@@ -127,6 +138,52 @@ class ShellGroupWidget implements PanelGroupWidget {
             this.#menu.addMenuItem(item);
             this.#entityRows.push({ id: entity.id, lastUpdate, value });
         });
+        this.#menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        const actionItem = new PopupMenu.PopupBaseMenuItem({ reactive: false, can_focus: false });
+        const actions = new St.BoxLayout({ style: 'spacing: 8px;', x_align: Clutter.ActorAlign.CENTER, x_expand: true });
+        const dashboard = this.#actionButton('view-grid-symbolic', 'Dashboard');
+        const settings = this.#actionButton('preferences-system-symbolic', 'Settings');
+        dashboard.connect('clicked', () => this.#runAction(
+            () => this.#actions.openDashboard(this.#dashboardUrl),
+            'Could not open the Home Assistant dashboard.',
+        ));
+        settings.connect('clicked', () => this.#runAction(
+            () => this.#actions.openSettings(),
+            'Could not open Peekhassio settings.',
+        ));
+        actions.add_child(dashboard);
+        actions.add_child(settings);
+        actionItem.add_child(actions);
+        this.#menu.addMenuItem(actionItem);
+        this.#actionError = new PopupMenu.PopupMenuItem('', { reactive: false, can_focus: false });
+        this.#actionError.style = 'color: #f6d32d;';
+        this.#actionError.visible = false;
+        this.#menu.addMenuItem(this.#actionError);
+    }
+
+    #actionButton(iconName: string, accessibleName: string): St.Button {
+        const button = new St.Button({
+            accessible_name: accessibleName,
+            can_focus: true,
+            child: new St.Icon({ icon_name: iconName, icon_size: 16 }),
+            style_class: 'button',
+        });
+        return button;
+    }
+
+    #runAction(action: () => void, failureMessage: string): void {
+        this.#actionError!.visible = false;
+        runPanelAction(
+            action,
+            () => this.#menu.close(),
+            failureMessage,
+            (message) => {
+                console.error(`Peekhassio panel action failed: ${message}`);
+                this.#actionError!.label.text = message;
+                this.#actionError!.visible = true;
+            },
+            () => console.error('Peekhassio could not report a panel action failure.'),
+        );
     }
 
     destroy(): void {
@@ -135,7 +192,13 @@ class ShellGroupWidget implements PanelGroupWidget {
 }
 
 export class ShellPanelWidgetFactory implements PanelWidgetFactory {
+    readonly #actions: ShellPanelActions;
+
+    constructor(actions: ShellPanelActions) {
+        this.#actions = actions;
+    }
+
     create(view: PanelGroupView, position: number): PanelGroupWidget {
-        return new ShellGroupWidget(view, position);
+        return new ShellGroupWidget(view, position, this.#actions);
     }
 }

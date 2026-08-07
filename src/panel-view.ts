@@ -1,7 +1,9 @@
+import { runSafely } from './action-runner.js';
 import type { EntityState } from './entity-state-client.js';
 import type { RuntimeGroupState } from './runtime-coordinator.js';
 
 export interface PanelGroupView {
+    dashboardUrl: string;
     id: string;
     name: string;
     values: string[];
@@ -9,6 +11,23 @@ export interface PanelGroupView {
     entities: PanelEntityView[];
     accessibleName: string;
     degraded: boolean;
+}
+
+export function runPanelAction(
+    action: () => void,
+    closeMenu: () => void,
+    failureMessage: string,
+    showError: (message: string) => void,
+    reportReportingError: () => void,
+): void {
+    runSafely(
+        () => {
+            action();
+            closeMenu();
+        },
+        () => showError(failureMessage),
+        reportReportingError,
+    );
 }
 
 export interface PanelWarningView {
@@ -95,6 +114,7 @@ export function buildPanelGroupViews(
             ? 'no entities'
             : group.entities.map(accessibleValue).join(', ');
         return {
+            dashboardUrl: group.dashboardUrl,
             id: group.id,
             name: group.name,
             values: group.entities.map(displayValue),

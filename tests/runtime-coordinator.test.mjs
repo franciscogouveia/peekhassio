@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { URL } from 'node:url';
 
 import { CredentialError } from '../dist/credential-store.js';
 import { AuthenticationError } from '../dist/home-assistant-client.js';
@@ -41,6 +42,10 @@ async function flushPromises() {
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
+}
+
+function buildDashboardUrl(instance, group) {
+    return new URL(group.dashboardPath, instance.baseUrl).toString();
 }
 
 class FakeCancellation {
@@ -90,6 +95,7 @@ function createHarness(tokens = new Map([['home', 'home-token'], ['cabin', 'cabi
     const updates = [];
     const retryScheduler = new FakeRetryScheduler();
     const dependencies = {
+        buildDashboardUrl,
         credentials: {
             loadToken(instanceId) {
                 const token = tokens.get(instanceId);
@@ -144,6 +150,11 @@ test('starts one deduplicated runtime per used instance and maps ordered groups'
     assert.equal(harness.runtimes.get('home').token, 'home-token');
     assert.deepEqual(harness.updates[0].map(group => group.id), ['downstairs', 'upstairs', 'cabin-lights']);
     assert.deepEqual(harness.updates[0].map(group => group.status), ['connecting', 'connecting', 'connecting']);
+    assert.deepEqual(harness.updates[0].map(group => group.dashboardUrl), [
+        'https://home.example/',
+        'https://home.example/',
+        'https://cabin.example/',
+    ]);
 
     harness.runtimes.get('home').onUpdate([
         { entityId: 'sensor.humidity', value: '45', availability: 'available', unit: '%' },
@@ -235,6 +246,7 @@ test('marks rejected Home Assistant authentication explicitly', async () => {
     const scheduler = new FakeRetryScheduler();
     const updates = [];
     const coordinator = new RuntimeCoordinator({
+        buildDashboardUrl,
         credentials: { loadToken: async () => 'token' },
         createCancellation: () => new FakeCancellation(),
         connect: async () => {
@@ -261,6 +273,7 @@ test('retries ordinary failures with increasing delays and cancels pending work'
     const scheduler = new FakeRetryScheduler();
     let attempts = 0;
     const coordinator = new RuntimeCoordinator({
+        buildDashboardUrl,
         credentials: { loadToken: async () => 'token' },
         createCancellation: () => new FakeCancellation(),
         connect: async () => {
@@ -305,6 +318,7 @@ test('stops stale startup work and supports a fresh restart', async () => {
     const originalConnect = harness.coordinator;
     const pendingHarness = createHarness();
     pendingHarness.coordinator = new RuntimeCoordinator({
+        buildDashboardUrl,
         credentials: { loadToken: async () => 'token' },
         createCancellation: () => new FakeCancellation(),
         connect: async () => new Promise((resolve) => {
