@@ -165,8 +165,8 @@ test('isolates instance failures and owns active runtime cleanup', async () => {
     assert.equal(harness.updates.at(-1)[2].status, 'authentication-failed');
     assert.equal(harness.runtimes.get('home').cancellation.cancelled, false);
     harness.runtimes.get('home').onUpdate([
-        { entityId: 'sensor.temperature', value: '21', availability: 'available', unit: '°C' },
-        { entityId: 'sensor.humidity', value: '45', availability: 'available', unit: '%' },
+        { entityId: 'sensor.temperature', value: '21', availability: 'available', receivedAt: 1_000, unit: '°C' },
+        { entityId: 'sensor.humidity', value: '45', availability: 'available', receivedAt: 1_001, unit: '%' },
     ]);
     harness.runtimes.get('home').onError(new Error('subscription failed'));
     assert.deepEqual(harness.errors.at(-1), ['home', 'subscription failed']);
@@ -176,6 +176,7 @@ test('isolates instance failures and owns active runtime cleanup', async () => {
     const staleGroups = harness.updates.at(-1);
     assert.equal(staleGroups[0].status, 'stale');
     assert.equal(staleGroups[0].entities[0].value, '21');
+    assert.equal(staleGroups[0].entities[0].receivedAt, 1_000);
     assert.deepEqual(harness.retryScheduler.delays, [100]);
     const failedRuntime = harness.runtimes.get('home');
     harness.retryScheduler.runNext();
@@ -183,11 +184,12 @@ test('isolates instance failures and owns active runtime cleanup', async () => {
     const recoveredRuntime = harness.runtimes.get('home');
     assert.notEqual(recoveredRuntime, failedRuntime);
     recoveredRuntime.onUpdate([
-        { entityId: 'sensor.temperature', value: '22', availability: 'available', unit: '°C' },
-        { entityId: 'sensor.humidity', value: '46', availability: 'available', unit: '%' },
+        { entityId: 'sensor.temperature', value: '22', availability: 'available', receivedAt: 2_000, unit: '°C' },
+        { entityId: 'sensor.humidity', value: '46', availability: 'available', receivedAt: 2_001, unit: '%' },
     ]);
     assert.equal(harness.updates.at(-1)[0].status, 'ready');
     assert.equal(harness.updates.at(-1)[0].entities[0].value, '22');
+    assert.equal(harness.updates.at(-1)[0].entities[0].receivedAt, 2_000);
 
     harness.coordinator.stop();
     harness.coordinator.stop();

@@ -171,6 +171,7 @@ function subscribe(connection, options = {}) {
     const scheduler = options.scheduler ?? new FakeScheduler();
     const updates = [];
     const errors = [];
+    let receivedAt = 1_000;
     return {
         cancellation,
         errors,
@@ -180,6 +181,7 @@ function subscribe(connection, options = {}) {
             cancellation,
             scheduler,
             5000,
+            options.now ?? (() => receivedAt++),
             states => updates.push(JSON.parse(JSON.stringify(states))),
             error => errors.push(error),
         ),
@@ -215,8 +217,8 @@ test('loads ordered states, buffers events, filters entities, and applies units'
 
     const result = await subscription.promise;
     assert.deepEqual(result.states, [
-        { entityId: 'sensor.temperature', value: '71', availability: 'available', unit: '°F' },
-        { entityId: 'sensor.humidity', value: null, availability: 'unknown', unit: '%' },
+        { entityId: 'sensor.temperature', value: '71', availability: 'available', receivedAt: 1000, unit: '°F' },
+        { entityId: 'sensor.humidity', value: null, availability: 'unknown', receivedAt: 1001, unit: '%' },
         { entityId: 'sensor.missing', value: null, availability: 'missing' },
     ]);
     assert.deepEqual(subscription.updates, [result.states]);
@@ -231,6 +233,7 @@ test('loads ordered states, buffers events, filters entities, and applies units'
         entityId: 'sensor.humidity',
         value: null,
         availability: 'unavailable',
+        receivedAt: 1002,
         unit: '%',
     });
     connection.receive(JSON.stringify({
@@ -242,6 +245,7 @@ test('loads ordered states, buffers events, filters entities, and applies units'
         entityId: 'sensor.humidity',
         value: null,
         availability: 'missing',
+        receivedAt: 1003,
     });
     result.stop();
     assert.equal(connection.messageCallbacks.size, 0);
@@ -293,10 +297,10 @@ test('handles entity initialization timeout, cancellation, closure, and invalid 
     transportConnection.remoteClose({ code: 1006, transportError: true });
     await assert.rejects(transportFailure.promise, /transport layer/);
 
-    await assert.rejects(subscribeEntityStates(connection, [], new FakeCancellation(), new FakeScheduler(), 0, () => {}, () => {}), /timeout must be positive/);
+    await assert.rejects(subscribeEntityStates(connection, [], new FakeCancellation(), new FakeScheduler(), 0, Date.now, () => {}, () => {}), /timeout must be positive/);
     const alreadyCancelled = new FakeCancellation();
     alreadyCancelled.cancel();
-    await assert.rejects(subscribeEntityStates(connection, [], alreadyCancelled, new FakeScheduler(), 1, () => {}, () => {}), /cancelled/);
+    await assert.rejects(subscribeEntityStates(connection, [], alreadyCancelled, new FakeScheduler(), 1, Date.now, () => {}, () => {}), /cancelled/);
 });
 
 test('rejects when the initial state consumer fails', async () => {
@@ -307,6 +311,7 @@ test('rejects when the initial state consumer fails', async () => {
         new FakeCancellation(),
         new FakeScheduler(),
         1,
+        Date.now,
         () => {
             throw new Error('consumer failed');
         },
