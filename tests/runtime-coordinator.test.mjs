@@ -45,17 +45,22 @@ async function flushPromises() {
 
 class FakeCancellation {
     cancelled = false;
+    callbacks = [];
 
     isCancelled() {
         return this.cancelled;
     }
 
-    onCancel() {
-        return () => {};
+    onCancel(callback) {
+        this.callbacks.push(callback);
+        return () => {
+            this.callbacks = this.callbacks.filter(candidate => candidate !== callback);
+        };
     }
 
     cancel() {
         this.cancelled = true;
+        this.callbacks.forEach(callback => callback());
     }
 }
 
@@ -186,6 +191,30 @@ test('isolates instance failures and owns active runtime cleanup', async () => {
 
     harness.coordinator.stop();
     harness.coordinator.stop();
+});
+
+test('disconnects subscription callbacks before cancelling and closes once', async () => {
+    const harness = createHarness();
+    await harness.coordinator.start(configuration);
+    const runtime = harness.runtimes.get('home');
+    const events = [];
+    runtime.subscription.stop = () => {
+        runtime.stopped = true;
+        events.push('stop');
+    };
+    runtime.cancellation.onCancel(() => {
+        events.push('cancel');
+        runtime.onError(new Error('cancelled callback'));
+    });
+    runtime.connection.close = () => {
+        events.push('close');
+        runtime.onError(new Error('closed callback'));
+    };
+
+    harness.coordinator.stop();
+
+    assert.deepEqual(events, ['stop', 'cancel', 'close']);
+    assert.deepEqual(harness.errors, []);
 });
 
 test('marks groups without configured entities ready without connecting', async () => {

@@ -204,11 +204,16 @@ export class RuntimeCoordinator {
     }
 
     #disposeConnection(runtime: InstanceRuntime): void {
-        runtime.cancellation.cancel();
-        runtime.subscription?.stop();
-        runtime.session?.connection.close();
+        const subscription = runtime.subscription;
+        const session = runtime.session;
         delete runtime.subscription;
         delete runtime.session;
+        // Disconnect native callbacks before cancellation and closure can emit
+        // signals. Clear ownership first so re-entrant callbacks cannot dispose
+        // the same native objects again.
+        subscription?.stop();
+        runtime.cancellation.cancel();
+        session?.connection.close();
     }
 
     #setInstanceStatus(instanceId: string, status: RuntimeStatus): void {

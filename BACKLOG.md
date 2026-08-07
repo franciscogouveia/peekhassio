@@ -110,10 +110,13 @@ Acceptance criteria:
 - Exercise preferences dialogs and native widget signals on GNOME Shell 50.
 - Cover successful actions, validation, cancellation, unexpected exceptions,
   and failed error reporting from the signal boundary.
-- Exercise enable, disable, re-enable, configuration changes, and dashboard
-  activation in a devkit Wayland session.
+- Exercise enable, disable, and re-enable with an authenticated Home Assistant
+  connection after live entity values have appeared.
+- Save instance, group, and entity changes while that connection is active and
+  verify that runtime restart and native WebSocket teardown remain safe.
+- Exercise dashboard activation in a devkit Wayland session.
 - Treat new warnings, critical messages, leaked timers, and lingering signal
-  handlers as failures.
+  handlers as failures, and inspect the journal and coredumps after each run.
 
 ## Validate the distributable artifact
 

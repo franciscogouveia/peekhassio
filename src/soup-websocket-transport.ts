@@ -15,6 +15,8 @@ const MAX_INCOMING_PAYLOAD_BYTES = 8 * 1024 * 1024;
 
 class SoupConnection implements WebSocketConnection {
     readonly #connection: Soup.WebsocketConnection;
+    #closed = false;
+    #closing = false;
     #transportError = false;
 
     constructor(connection: Soup.WebsocketConnection) {
@@ -23,6 +25,9 @@ class SoupConnection implements WebSocketConnection {
         connection.connect('error', () => {
             this.#transportError = true;
         });
+        connection.connect('closed', () => {
+            this.#closed = true;
+        });
     }
 
     sendText(message: string): void {
@@ -30,6 +35,9 @@ class SoupConnection implements WebSocketConnection {
     }
 
     close(): void {
+        if (this.#closing || this.#closed)
+            return;
+        this.#closing = true;
         this.#connection.close(Soup.WebsocketCloseCode.NORMAL, null);
     }
 
@@ -39,7 +47,7 @@ class SoupConnection implements WebSocketConnection {
                 ? new TextDecoder().decode(data.get_data() ?? new Uint8Array())
                 : null);
         });
-        return () => this.#connection.disconnect(signal);
+        return this.#disconnectOnce(signal);
     }
 
     onClosed(callback: (closure: WebSocketClosure) => void): () => void {
@@ -47,7 +55,17 @@ class SoupConnection implements WebSocketConnection {
             code: this.#connection.get_close_code(),
             transportError: this.#transportError,
         }));
-        return () => this.#connection.disconnect(signal);
+        return this.#disconnectOnce(signal);
+    }
+
+    #disconnectOnce(signal: number): () => void {
+        let connected = true;
+        return () => {
+            if (!connected)
+                return;
+            connected = false;
+            this.#connection.disconnect(signal);
+        };
     }
 }
 
