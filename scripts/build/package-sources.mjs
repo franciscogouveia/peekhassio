@@ -50,16 +50,16 @@ export function assertExtensionPackage(entries, runtimeModules) {
     const expected = [
         ...runtimeModules,
         'metadata.json',
-        'schemas/gschemas.compiled',
         'schemas/org.gnome.shell.extensions.peekhassio.gschema.xml',
     ].sort();
+    const allowed = [...expected, 'schemas/gschemas.compiled'];
     const unsafe = files.filter(file => file.startsWith('/') || file.split('/').includes('..'));
     if (unsafe.length > 0)
         throw new Error(`Package contains unsafe paths: ${unsafe.join(', ')}`);
     const missing = expected.filter(file => !files.includes(file));
     if (missing.length > 0)
         throw new Error(`Package omits required files: ${missing.join(', ')}`);
-    const unexpected = files.filter(file => !expected.includes(file));
+    const unexpected = files.filter(file => !allowed.includes(file));
     if (unexpected.length > 0)
         throw new Error(`Package contains unnecessary files: ${unexpected.join(', ')}`);
 }
