@@ -5,19 +5,17 @@ import Gtk from 'gi://Gtk';
 import { ExtensionPreferences, gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 import { CredentialStore } from './instances/credential-store.js';
-import { moveEntity, removeEntity, upsertEntity } from './entities/configuration.js';
+import { manageEntities } from './entities/preferences.js';
 import { buildGroupPreferencesPage } from './groups/preferences.js';
 import { removeInstance } from './instances/configuration.js';
 import {
     ConfigurationStore,
     type ConfigurationV1,
-    type EntityConfiguration,
     type InstanceConfiguration,
     createDefaultConfiguration,
 } from './shared/configuration.js';
 import { SecretServiceBackend } from './instances/secret-service.js';
 import { buildInstancePreferencesPage } from './instances/preferences.js';
-import { buildEntityRows } from './preferences/view.js';
 import { runSafely } from './shared/action-runner.js';
 
 function messageFrom(error: unknown): string {
@@ -71,140 +69,17 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
             }), buildGroupPreferencesPage({
                 configuration: this.#configuration,
                 window: this.#window,
-                manageEntities: groupId => this.#manageEntities(groupId),
+                manageEntities: groupId => manageEntities({
+                    getConfiguration: () => this.#configuration,
+                    persist: (configuration, refresh) => this.#persistEntityChange(configuration, refresh),
+                    runAction: action => this.#runAction(action),
+                    window: this.#window,
+                }, groupId),
                 persist: configuration => this.#persist(configuration, true),
                 runAction: action => this.#runAction(action),
             })],
             showGroups ? 1 : 0,
         );
-    }
-
-    #iconButton(iconName: string, tooltipText: string): Gtk.Button {
-        const button = new Gtk.Button({
-            icon_name: iconName,
-            tooltip_text: tooltipText,
-            valign: Gtk.Align.CENTER,
-        });
-        button.add_css_class('flat');
-        return button;
-    }
-
-    #manageEntities(groupId: string): void {
-        const dialog = new Adw.PreferencesDialog();
-        let page: Adw.PreferencesPage | null = null;
-        const render = (): void => {
-            if (page)
-                dialog.remove(page);
-            const group = this.#configuration.groups.find(candidate => candidate.id === groupId);
-            if (!group)
-                throw new Error(`Invalid configuration: group id ${groupId} must exist`);
-            page = new Adw.PreferencesPage({ title: _('Entities') });
-            const rows = new Adw.PreferencesGroup({
-                title: group.name,
-                description: _('Entities appear in this order.'),
-            });
-            const addButton = this.#iconButton('list-add-symbolic', _('Add entity'));
-            addButton.connect('clicked', () => this.#runAction(() => this.#editEntity(dialog, groupId, render)));
-            rows.header_suffix = addButton;
-
-            const view = buildEntityRows(this.#configuration, groupId);
-            if (view.length === 0) {
-                rows.add(new Adw.ActionRow({
-                    title: _('No entities configured'),
-                    subtitle: _('Add a Home Assistant entity to this group.'),
-                }));
-            }
-            view.forEach((item) => {
-                const entity = group.entities.find(candidate => candidate.entityId === item.id)!;
-                const row = new Adw.ActionRow({ title: item.title, subtitle: _(item.subtitle) });
-                const upButton = this.#iconButton('go-up-symbolic', _('Move entity up'));
-                const downButton = this.#iconButton('go-down-symbolic', _('Move entity down'));
-                const editButton = this.#iconButton('document-edit-symbolic', _('Edit entity'));
-                const deleteButton = this.#iconButton('user-trash-symbolic', _('Delete entity'));
-                upButton.sensitive = item.canMoveUp;
-                downButton.sensitive = item.canMoveDown;
-                upButton.connect('clicked', () => this.#runAction(() => this.#persistEntityChange(
-                    moveEntity(this.#configuration, groupId, entity.entityId, -1), render)));
-                downButton.connect('clicked', () => this.#runAction(() => this.#persistEntityChange(
-                    moveEntity(this.#configuration, groupId, entity.entityId, 1), render)));
-                editButton.connect('clicked', () => this.#runAction(() => this.#editEntity(dialog, groupId, render, entity)));
-                deleteButton.connect('clicked', () => this.#runAction(() => this.#deleteEntity(dialog, groupId, entity, render)));
-                row.add_suffix(upButton);
-                row.add_suffix(downButton);
-                row.add_suffix(editButton);
-                row.add_suffix(deleteButton);
-                rows.add(row);
-            });
-            page.add(rows);
-            dialog.add(page);
-        };
-        render();
-        dialog.present(this.#window);
-    }
-
-    #editEntity(
-        parent: Adw.PreferencesDialog,
-        groupId: string,
-        refresh: () => void,
-        existing?: EntityConfiguration,
-    ): void {
-        const dialog = new Adw.AlertDialog({ heading: existing ? _('Edit entity') : _('Add entity') });
-        const fields = new Adw.PreferencesGroup();
-        const idRow = new Adw.EntryRow({ title: _('Entity ID'), text: existing?.entityId ?? '' });
-        const unitRow = new Adw.EntryRow({ title: _('Unit override (optional)'), text: existing?.unitOverride ?? '' });
-        fields.add(idRow);
-        fields.add(unitRow);
-        dialog.extra_child = fields;
-        dialog.add_response('cancel', _('Cancel'));
-        dialog.add_response('save', existing ? _('Save') : _('Add'));
-        dialog.close_response = 'cancel';
-        dialog.default_response = 'save';
-        dialog.set_response_appearance('save', Adw.ResponseAppearance.SUGGESTED);
-        let candidate: ConfigurationV1 | null = null;
-        const validate = (): void => {
-            try {
-                candidate = upsertEntity(this.#configuration, groupId, existing?.entityId ?? null, {
-                    entityId: idRow.text.trim(),
-                    unitOverride: unitRow.text,
-                });
-                dialog.body = '';
-                dialog.set_response_enabled('save', true);
-            }
-            catch (error) {
-                candidate = null;
-                dialog.body = messageFrom(error).replace('Invalid configuration: ', '');
-                dialog.set_response_enabled('save', false);
-            }
-        };
-        idRow.connect('changed', validate);
-        unitRow.connect('changed', validate);
-        validate();
-        dialog.connect('response', (_dialog, response) => this.#runAction(() => {
-            if (response === 'save' && candidate)
-                this.#persistEntityChange(candidate, refresh);
-        }));
-        dialog.present(parent);
-    }
-
-    #deleteEntity(
-        parent: Adw.PreferencesDialog,
-        groupId: string,
-        entity: EntityConfiguration,
-        refresh: () => void,
-    ): void {
-        const dialog = new Adw.AlertDialog({
-            heading: _('Delete “%s”?').format(entity.entityId),
-            body: _('This removes the entity from this group.'),
-        });
-        dialog.add_response('cancel', _('Cancel'));
-        dialog.add_response('delete', _('Delete'));
-        dialog.close_response = 'cancel';
-        dialog.set_response_appearance('delete', Adw.ResponseAppearance.DESTRUCTIVE);
-        dialog.connect('response', (_dialog, response) => this.#runAction(() => {
-            if (response === 'delete')
-                this.#persistEntityChange(removeEntity(this.#configuration, groupId, entity.entityId), refresh);
-        }));
-        dialog.present(parent);
     }
 
     #persistEntityChange(configuration: ConfigurationV1, refresh: () => void): void {
