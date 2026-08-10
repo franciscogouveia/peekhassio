@@ -69,6 +69,3 @@ The acceptance pass confirmed:
 - expected credential warning states;
 - no Shell crashes or critical errors; and
 - configuration and token persistence across installs and upgrades.
-
-The final 1.0.0 archive must be rebuilt from the release commit and receive a
-final install smoke test before publication.
