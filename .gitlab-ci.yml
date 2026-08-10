@@ -4,6 +4,9 @@ workflow:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - when: never
 
+include:
+  - template: Jobs/Secret-Detection.gitlab-ci.yml
+
 stages:
   - validate
 
@@ -19,8 +22,24 @@ default:
     policy: pull-push
 
 variables:
+  AST_ENABLE_MR_PIPELINES: 'true'
   NPM_CONFIG_CACHE: '$CI_PROJECT_DIR/.npm'
   NPM_CONFIG_PREFER_OFFLINE: 'true'
+
+secret_detection:
+  stage: validate
+  allow_failure: false
+  cache: []
+
+# The analyzer reports findings without failing solely because they exist.
+secret_detection_gate:
+  stage: validate
+  needs:
+    - job: secret_detection
+      artifacts: true
+  cache: []
+  script:
+    - node scripts/ci/check-secret-detection.mjs
 
 quality:
   stage: validate

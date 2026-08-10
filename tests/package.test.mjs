@@ -9,7 +9,7 @@ import {
     assertRuntimeModulesPackaged,
     collectRuntimeModules,
     extraSourcesFrom,
-} from '../scripts/package-sources.mjs';
+} from '../scripts/build/package-sources.mjs';
 
 const projectDirectory = fileURLToPath(new URL('../', import.meta.url));
 
