@@ -10,6 +10,10 @@ Peekhassio is feature-complete for its first release and is currently undergoing
 release hardening. It targets and has been manually tested with GNOME Shell 50
 only.
 
+This GitHub repository is a public mirror of Peekhassio's source code. Report
+bugs and feature requests by leaving a comment on Peekhassio's page on
+[GNOME Shell Extensions](https://extensions.gnome.org/).
+
 ## Features
 
 Peekhassio provides:
