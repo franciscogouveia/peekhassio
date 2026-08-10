@@ -113,6 +113,11 @@ Aggregate line, branch, and function coverage must remain above 80%. Generated
 JavaScript is written to `dist/`; `npm run package` creates
 `peekhassio@de-gouveia.eu.shell-extension.zip`.
 
+Tags mirrored to GitHub trigger the GitHub Actions release workflow. It runs the
+complete Node and GJS checks, packages the tagged commit, creates a SHA-256
+checksum, and publishes both files in a GitHub Release. Rerunning the workflow
+replaces the existing release assets instead of creating a duplicate release.
+
 Test authenticated Shell integration in a nested GNOME 50 Wayland session with
 a dedicated Secret Service provider:
 
