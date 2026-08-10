@@ -20,7 +20,7 @@ test('packages every module imported by the preferences entry point', async () =
     const extraSources = extraSourcesFrom(packageJson.scripts.package);
 
     assert.deepEqual(modules, ['entities/configuration.js', 'entities/preferences.js', 'entities/state-client.js', 'extension.js', 'groups/configuration.js', 'groups/panel-renderer.js', 'groups/panel-view.js', 'groups/preferences.js', 'instances/configuration.js', 'instances/credential-store.js', 'instances/home-assistant-client.js', 'instances/preferences.js', 'instances/secret-service.js', 'instances/soup-websocket-transport.js', 'preferences/view.js', 'prefs.js', 'runtime/coordinator.js', 'runtime/extension-runtime.js', 'shared/action-runner.js', 'shared/configuration.js', 'shared/signal-owner.js']);
-    assert.deepEqual(extraSources, ['entities/configuration.js', 'entities/preferences.js', 'entities/state-client.js', 'groups/configuration.js', 'groups/panel-renderer.js', 'groups/panel-view.js', 'groups/preferences.js', 'instances/configuration.js', 'instances/credential-store.js', 'instances/home-assistant-client.js', 'instances/preferences.js', 'instances/secret-service.js', 'instances/soup-websocket-transport.js', 'preferences/view.js', 'runtime/coordinator.js', 'runtime/extension-runtime.js', 'shared/action-runner.js', 'shared/configuration.js', 'shared/signal-owner.js']);
+    assert.deepEqual(extraSources, ['entities', 'groups', 'instances', 'preferences', 'runtime', 'shared']);
     assert.doesNotThrow(() => assertRuntimeModulesPackaged(modules, extraSources));
 });
 
@@ -44,6 +44,17 @@ test('rejects a runtime module omitted from the pack command', () => {
     assert.throws(
         () => assertRuntimeModulesPackaged(['extension.js', 'prefs.js', 'configuration.js'], []),
         /Package omits runtime modules: configuration\.js/,
+    );
+});
+
+test('directory sources cover only their contained runtime modules', () => {
+    assert.doesNotThrow(() => assertRuntimeModulesPackaged(
+        ['extension.js', 'prefs.js', 'entities/configuration.js'],
+        ['entities'],
+    ));
+    assert.throws(
+        () => assertRuntimeModulesPackaged(['extension.js', 'prefs.js', 'entity/configuration.js'], ['entities']),
+        /Package omits runtime modules: entity\/configuration\.js/,
     );
 });
 
