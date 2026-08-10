@@ -9,7 +9,7 @@ import { promisify } from 'node:util';
 import test from 'node:test';
 
 const execFileAsync = promisify(execFile);
-const checker = fileURLToPath(new URL('../scripts/check-secret-detection.mjs', import.meta.url));
+const checker = fileURLToPath(new URL('../scripts/ci/check-secret-detection.mjs', import.meta.url));
 
 async function withReport(contents, action) {
     const directory = await mkdtemp(path.join(os.tmpdir(), 'peekhassio-secret-detection-'));

@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { URL, fileURLToPath } from 'node:url';
 
-import { assertMetadata, validateMetadata } from '../scripts/metadata.mjs';
+import { assertMetadata, validateMetadata } from '../scripts/build/metadata.mjs';
 
 const metadataPath = fileURLToPath(new URL('../metadata.json', import.meta.url));
 const metadata = JSON.parse(await readFile(metadataPath, 'utf8'));

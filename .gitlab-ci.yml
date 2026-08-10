@@ -39,7 +39,7 @@ secret_detection_gate:
       artifacts: true
   cache: []
   script:
-    - node scripts/check-secret-detection.mjs
+    - node scripts/ci/check-secret-detection.mjs
 
 quality:
   stage: validate
