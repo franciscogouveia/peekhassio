@@ -4,5 +4,5 @@
     "description": "Peek at Home Assistant entity states from the GNOME top bar.",
     "shell-version": ["50"],
     "settings-schema": "org.gnome.shell.extensions.peekhassio",
-    "url": "http://gitlab.de-gouveia.eu/gnome-extensions/peekhassio"
+    "url": "https://github.com/franciscogouveia/peekhassio"
 }
