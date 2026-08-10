@@ -40,7 +40,8 @@ export function extraSourcesFrom(command) {
 
 export function assertRuntimeModulesPackaged(modules, extraSources) {
     const missing = modules
-        .filter(module => !ENTRY_POINTS.has(module) && !extraSources.includes(module));
+        .filter(module => !ENTRY_POINTS.has(module) && !extraSources.some(source =>
+            module === source || module.startsWith(`${source}/`)));
     if (missing.length > 0)
         throw new Error(`Package omits runtime modules: ${missing.join(', ')}`);
 }
