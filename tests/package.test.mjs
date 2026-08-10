@@ -55,11 +55,11 @@ test('accepts only the complete reviewable extension archive', () => {
         'metadata.json',
         'prefs.js',
         'runtime.js',
-        'schemas/gschemas.compiled',
         'schemas/org.gnome.shell.extensions.peekhassio.gschema.xml',
     ];
 
     assert.doesNotThrow(() => assertExtensionPackage(entries, modules));
+    assert.doesNotThrow(() => assertExtensionPackage([...entries, 'schemas/gschemas.compiled'], modules));
 });
 
 test('rejects missing, unnecessary, and unsafe archive files', () => {
@@ -68,13 +68,12 @@ test('rejects missing, unnecessary, and unsafe archive files', () => {
         'extension.js',
         'metadata.json',
         'prefs.js',
-        'schemas/gschemas.compiled',
         'schemas/org.gnome.shell.extensions.peekhassio.gschema.xml',
     ];
 
     assert.throws(
-        () => assertExtensionPackage(required.filter(file => file !== 'schemas/gschemas.compiled'), modules),
-        /Package omits required files: schemas\/gschemas\.compiled/,
+        () => assertExtensionPackage(required.filter(file => !file.endsWith('.gschema.xml')), modules),
+        /Package omits required files: schemas\/org\.gnome\.shell\.extensions\.peekhassio\.gschema\.xml/,
     );
     assert.throws(
         () => assertExtensionPackage([...required, 'README.md'], modules),
