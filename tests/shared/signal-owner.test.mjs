@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { SignalOwner } from '../dist/signal-owner.js';
+import { SignalOwner } from '../../dist/shared/signal-owner.js';
 
 test('disconnects every owned signal exactly once', () => {
     const owner = new SignalOwner();

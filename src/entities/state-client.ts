@@ -1,9 +1,9 @@
-import type { EntityConfiguration } from './configuration.js';
+import type { EntityConfiguration } from '../shared/configuration.js';
 import type {
     Cancellation,
     Scheduler,
     WebSocketConnection,
-} from './home-assistant-client.js';
+} from '../instances/home-assistant-client.js';
 
 export type EntityAvailability = 'available' | 'missing' | 'unavailable' | 'unknown';
 

@@ -1,4 +1,4 @@
-import type { ConfigurationV1 } from './configuration.js';
+import type { ConfigurationV1 } from '../shared/configuration.js';
 
 export interface InstanceRowView {
     id: string;

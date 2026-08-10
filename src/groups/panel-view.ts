@@ -1,6 +1,6 @@
-import { runSafely } from './action-runner.js';
-import type { EntityState } from './entity-state-client.js';
-import type { RuntimeGroupState } from './runtime-coordinator.js';
+import { runSafely } from '../shared/action-runner.js';
+import type { EntityState } from '../entities/state-client.js';
+import type { RuntimeGroupState } from '../runtime/coordinator.js';
 
 export interface PanelGroupView {
     dashboardUrl: string;

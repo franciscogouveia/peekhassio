@@ -8,7 +8,7 @@ import type {
     WebSocketConnection,
     WebSocketTransport,
 } from './home-assistant-client.js';
-import { SignalOwner } from './signal-owner.js';
+import { SignalOwner } from '../shared/signal-owner.js';
 
 Gio._promisify(Soup.Session.prototype, 'websocket_connect_async', 'websocket_connect_finish');
 

@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { URL } from 'node:url';
 
-import { CredentialError } from '../dist/credential-store.js';
-import { AuthenticationError } from '../dist/home-assistant-client.js';
-import { RuntimeCoordinator, calculateRetryDelay } from '../dist/runtime-coordinator.js';
+import { CredentialError } from '../../dist/instances/credential-store.js';
+import { AuthenticationError } from '../../dist/instances/home-assistant-client.js';
+import { RuntimeCoordinator, calculateRetryDelay } from '../../dist/runtime/coordinator.js';
 
 const configuration = {
     version: 1,
