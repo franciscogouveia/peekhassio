@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { CredentialStore } from '../dist/credential-store.js';
+import { CredentialStore } from '../../dist/instances/credential-store.js';
 
 test('stores, checks, loads, and clears credentials asynchronously', async () => {
     const tokens = new Map();

@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { connectAuthenticated } from '../dist/home-assistant-client.js';
-import { subscribeEntityStates } from '../dist/entity-state-client.js';
+import { subscribeEntityStates } from '../../dist/entities/state-client.js';
+import { connectAuthenticated } from '../../dist/instances/home-assistant-client.js';
 
 class FakeCancellation {
     cancelled = false;

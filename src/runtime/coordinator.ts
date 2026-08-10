@@ -3,15 +3,15 @@ import type {
     EntityConfiguration,
     GroupConfiguration,
     InstanceConfiguration,
-} from './configuration.js';
-import { CredentialError, type CredentialStore } from './credential-store.js';
-import type { EntityState, EntitySubscription } from './entity-state-client.js';
+} from '../shared/configuration.js';
+import { CredentialError, type CredentialStore } from '../instances/credential-store.js';
+import type { EntityState, EntitySubscription } from '../entities/state-client.js';
 import {
     AuthenticationError,
     type AuthenticatedSession,
     type Cancellation,
     type Scheduler,
-} from './home-assistant-client.js';
+} from '../instances/home-assistant-client.js';
 
 export type RuntimeStatus = 'connecting' | 'ready' | 'stale' | 'authentication-failed';
 

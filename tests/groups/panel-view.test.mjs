@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { buildPanelGroupViews, PanelViewController, runPanelAction } from '../dist/panel-view.js';
+import { buildPanelGroupViews, PanelViewController, runPanelAction } from '../../dist/groups/panel-view.js';
 
 const groups = [
     {

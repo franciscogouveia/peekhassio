@@ -2,16 +2,16 @@ import Gio from 'gi://Gio';
 
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
-import { ConfigurationStore, buildDashboardUrl, buildWebSocketUrl } from './configuration.js';
-import { CredentialStore } from './credential-store.js';
-import { subscribeEntityStates } from './entity-state-client.js';
-import { ExtensionRuntime } from './extension-runtime.js';
-import { connectAuthenticated } from './home-assistant-client.js';
-import { ShellPanelWidgetFactory } from './panel-renderer.js';
-import { PanelViewController } from './panel-view.js';
-import { RuntimeCoordinator, calculateRetryDelay } from './runtime-coordinator.js';
-import { SecretServiceBackend } from './secret-service.js';
-import { GioCancellation, GLibScheduler, SoupWebSocketTransport } from './soup-websocket-transport.js';
+import { subscribeEntityStates } from './entities/state-client.js';
+import { ShellPanelWidgetFactory } from './groups/panel-renderer.js';
+import { PanelViewController } from './groups/panel-view.js';
+import { CredentialStore } from './instances/credential-store.js';
+import { connectAuthenticated } from './instances/home-assistant-client.js';
+import { SecretServiceBackend } from './instances/secret-service.js';
+import { GioCancellation, GLibScheduler, SoupWebSocketTransport } from './instances/soup-websocket-transport.js';
+import { ExtensionRuntime } from './runtime/extension-runtime.js';
+import { RuntimeCoordinator, calculateRetryDelay } from './runtime/coordinator.js';
+import { ConfigurationStore, buildDashboardUrl, buildWebSocketUrl } from './shared/configuration.js';
 
 const CONNECTION_TIMEOUT_MILLISECONDS = 10_000;
 

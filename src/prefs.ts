@@ -5,8 +5,7 @@ import Gtk from 'gi://Gtk';
 
 import { ExtensionPreferences, gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
-import { runSafely } from './action-runner.js';
-import { CredentialStore } from './credential-store.js';
+import { CredentialStore } from './instances/credential-store.js';
 import {
     ConfigurationStore,
     type ConfigurationV1,
@@ -23,9 +22,10 @@ import {
     upsertGroup,
     upsertEntity,
     upsertInstance,
-} from './configuration.js';
-import { buildEntityRows, buildPreferencesView } from './preferences-view.js';
-import { SecretServiceBackend } from './secret-service.js';
+} from './shared/configuration.js';
+import { SecretServiceBackend } from './instances/secret-service.js';
+import { buildEntityRows, buildPreferencesView } from './preferences/view.js';
+import { runSafely } from './shared/action-runner.js';
 
 function messageFrom(error: unknown): string {
     return error instanceof Error ? error.message : String(error);

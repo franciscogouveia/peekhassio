@@ -10,17 +10,17 @@ import {
     assertRuntimeModulesPackaged,
     collectRuntimeModules,
     extraSourcesFrom,
-} from '../scripts/build/package-sources.mjs';
+} from '../../scripts/build/package-sources.mjs';
 
-const projectDirectory = fileURLToPath(new URL('../', import.meta.url));
+const projectDirectory = fileURLToPath(new URL('../../', import.meta.url));
 
 test('packages every module imported by the preferences entry point', async () => {
-    const packageJson = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+    const packageJson = JSON.parse(await readFile(new URL('../../package.json', import.meta.url), 'utf8'));
     const modules = await collectRuntimeModules(path.join(projectDirectory, 'dist'));
     const extraSources = extraSourcesFrom(packageJson.scripts.package);
 
-    assert.deepEqual(modules, ['action-runner.js', 'configuration.js', 'credential-store.js', 'entity-state-client.js', 'extension-runtime.js', 'extension.js', 'home-assistant-client.js', 'panel-renderer.js', 'panel-view.js', 'preferences-view.js', 'prefs.js', 'runtime-coordinator.js', 'secret-service.js', 'signal-owner.js', 'soup-websocket-transport.js']);
-    assert.deepEqual(extraSources, ['action-runner.js', 'configuration.js', 'credential-store.js', 'entity-state-client.js', 'extension-runtime.js', 'home-assistant-client.js', 'panel-renderer.js', 'panel-view.js', 'preferences-view.js', 'runtime-coordinator.js', 'secret-service.js', 'signal-owner.js', 'soup-websocket-transport.js']);
+    assert.deepEqual(modules, ['entities/state-client.js', 'extension.js', 'groups/panel-renderer.js', 'groups/panel-view.js', 'instances/credential-store.js', 'instances/home-assistant-client.js', 'instances/secret-service.js', 'instances/soup-websocket-transport.js', 'preferences/view.js', 'prefs.js', 'runtime/coordinator.js', 'runtime/extension-runtime.js', 'shared/action-runner.js', 'shared/configuration.js', 'shared/signal-owner.js']);
+    assert.deepEqual(extraSources, ['entities/state-client.js', 'groups/panel-renderer.js', 'groups/panel-view.js', 'instances/credential-store.js', 'instances/home-assistant-client.js', 'instances/secret-service.js', 'instances/soup-websocket-transport.js', 'preferences/view.js', 'runtime/coordinator.js', 'runtime/extension-runtime.js', 'shared/action-runner.js', 'shared/configuration.js', 'shared/signal-owner.js']);
     assert.doesNotThrow(() => assertRuntimeModulesPackaged(modules, extraSources));
 });
 

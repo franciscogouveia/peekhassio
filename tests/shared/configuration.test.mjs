@@ -2,7 +2,7 @@
 
 import System from 'system';
 
-import { runSafely } from '../dist/action-runner.js';
+import { runSafely } from '../../dist/shared/action-runner.js';
 import {
     CONFIGURATION_KEY,
     CREDENTIAL_REVISION_KEY,
@@ -22,8 +22,8 @@ import {
     upsertInstance,
     upsertGroup,
     upsertEntity,
-} from '../dist/configuration.js';
-import { buildEntityRows, buildPreferencesView } from '../dist/preferences-view.js';
+} from '../../dist/shared/configuration.js';
+import { buildEntityRows, buildPreferencesView } from '../../dist/preferences/view.js';
 import { assertThrowsMatching } from './assertions.mjs';
 
 const JsUnit = imports.jsUnit;

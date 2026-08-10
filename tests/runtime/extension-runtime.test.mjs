@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { ExtensionRuntime } from '../dist/extension-runtime.js';
+import { ExtensionRuntime } from '../../dist/runtime/extension-runtime.js';
 
 const configuration = { version: 1, instances: [], groups: [] };
 
