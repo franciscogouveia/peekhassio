@@ -8,6 +8,7 @@ import type {
     WebSocketConnection,
     WebSocketTransport,
 } from './home-assistant-client.js';
+import { SignalOwner } from './signal-owner.js';
 
 Gio._promisify(Soup.Session.prototype, 'websocket_connect_async', 'websocket_connect_finish');
 
@@ -15,6 +16,7 @@ const MAX_INCOMING_PAYLOAD_BYTES = 8 * 1024 * 1024;
 
 class SoupConnection implements WebSocketConnection {
     readonly #connection: Soup.WebsocketConnection;
+    readonly #transportSignals = new SignalOwner();
     #closed = false;
     #closing = false;
     #transportError = false;
@@ -22,12 +24,13 @@ class SoupConnection implements WebSocketConnection {
     constructor(connection: Soup.WebsocketConnection) {
         this.#connection = connection;
         connection.set_max_incoming_payload_size(MAX_INCOMING_PAYLOAD_BYTES);
-        connection.connect('error', () => {
+        this.#transportSignals.add(connection.connect('error', () => {
             this.#transportError = true;
-        });
-        connection.connect('closed', () => {
+        }));
+        this.#transportSignals.add(connection.connect('closed', () => {
             this.#closed = true;
-        });
+            this.#disconnectTransportSignals();
+        }));
     }
 
     sendText(message: string): void {
@@ -38,7 +41,12 @@ class SoupConnection implements WebSocketConnection {
         if (this.#closing || this.#closed)
             return;
         this.#closing = true;
-        this.#connection.close(Soup.WebsocketCloseCode.NORMAL, null);
+        try {
+            this.#connection.close(Soup.WebsocketCloseCode.NORMAL, null);
+        }
+        finally {
+            this.#disconnectTransportSignals();
+        }
     }
 
     onMessage(callback: (message: string | null) => void): () => void {
@@ -66,6 +74,10 @@ class SoupConnection implements WebSocketConnection {
             connected = false;
             this.#connection.disconnect(signal);
         };
+    }
+
+    #disconnectTransportSignals(): void {
+        this.#transportSignals.disconnectAll(signal => this.#connection.disconnect(signal));
     }
 }
 

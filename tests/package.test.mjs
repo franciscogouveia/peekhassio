@@ -6,6 +6,7 @@ import test from 'node:test';
 import { URL, fileURLToPath } from 'node:url';
 
 import {
+    assertExtensionPackage,
     assertRuntimeModulesPackaged,
     collectRuntimeModules,
     extraSourcesFrom,
@@ -18,8 +19,8 @@ test('packages every module imported by the preferences entry point', async () =
     const modules = await collectRuntimeModules(path.join(projectDirectory, 'dist'));
     const extraSources = extraSourcesFrom(packageJson.scripts.package);
 
-    assert.deepEqual(modules, ['action-runner.js', 'configuration.js', 'credential-store.js', 'entity-state-client.js', 'extension-runtime.js', 'extension.js', 'home-assistant-client.js', 'panel-renderer.js', 'panel-view.js', 'preferences-view.js', 'prefs.js', 'runtime-coordinator.js', 'secret-service.js', 'soup-websocket-transport.js']);
-    assert.deepEqual(extraSources, ['action-runner.js', 'configuration.js', 'credential-store.js', 'entity-state-client.js', 'extension-runtime.js', 'home-assistant-client.js', 'panel-renderer.js', 'panel-view.js', 'preferences-view.js', 'runtime-coordinator.js', 'secret-service.js', 'soup-websocket-transport.js']);
+    assert.deepEqual(modules, ['action-runner.js', 'configuration.js', 'credential-store.js', 'entity-state-client.js', 'extension-runtime.js', 'extension.js', 'home-assistant-client.js', 'panel-renderer.js', 'panel-view.js', 'preferences-view.js', 'prefs.js', 'runtime-coordinator.js', 'secret-service.js', 'signal-owner.js', 'soup-websocket-transport.js']);
+    assert.deepEqual(extraSources, ['action-runner.js', 'configuration.js', 'credential-store.js', 'entity-state-client.js', 'extension-runtime.js', 'home-assistant-client.js', 'panel-renderer.js', 'panel-view.js', 'preferences-view.js', 'runtime-coordinator.js', 'secret-service.js', 'signal-owner.js', 'soup-websocket-transport.js']);
     assert.doesNotThrow(() => assertRuntimeModulesPackaged(modules, extraSources));
 });
 
@@ -43,5 +44,44 @@ test('rejects a runtime module omitted from the pack command', () => {
     assert.throws(
         () => assertRuntimeModulesPackaged(['extension.js', 'prefs.js', 'configuration.js'], []),
         /Package omits runtime modules: configuration\.js/,
+    );
+});
+
+test('accepts only the complete reviewable extension archive', () => {
+    const modules = ['extension.js', 'prefs.js', 'runtime.js'];
+    const entries = [
+        'schemas/',
+        'extension.js',
+        'metadata.json',
+        'prefs.js',
+        'runtime.js',
+        'schemas/gschemas.compiled',
+        'schemas/org.gnome.shell.extensions.peekhassio.gschema.xml',
+    ];
+
+    assert.doesNotThrow(() => assertExtensionPackage(entries, modules));
+});
+
+test('rejects missing, unnecessary, and unsafe archive files', () => {
+    const modules = ['extension.js', 'prefs.js'];
+    const required = [
+        'extension.js',
+        'metadata.json',
+        'prefs.js',
+        'schemas/gschemas.compiled',
+        'schemas/org.gnome.shell.extensions.peekhassio.gschema.xml',
+    ];
+
+    assert.throws(
+        () => assertExtensionPackage(required.filter(file => file !== 'schemas/gschemas.compiled'), modules),
+        /Package omits required files: schemas\/gschemas\.compiled/,
+    );
+    assert.throws(
+        () => assertExtensionPackage([...required, 'README.md'], modules),
+        /Package contains unnecessary files: README\.md/,
+    );
+    assert.throws(
+        () => assertExtensionPackage([...required, '../token'], modules),
+        /Package contains unsafe paths: \.\.\/token/,
     );
 });
