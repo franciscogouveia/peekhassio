@@ -1,25 +1,23 @@
 import Adw from 'gi://Adw';
 import Gio from 'gi://Gio';
-import GLib from 'gi://GLib';
 import Gtk from 'gi://Gtk';
 
 import { ExtensionPreferences, gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 import { CredentialStore } from './instances/credential-store.js';
 import { moveEntity, removeEntity, upsertEntity } from './entities/configuration.js';
-import { moveGroup, removeGroup, upsertGroup } from './groups/configuration.js';
+import { buildGroupPreferencesPage } from './groups/preferences.js';
 import { removeInstance } from './instances/configuration.js';
 import {
     ConfigurationStore,
     type ConfigurationV1,
     type EntityConfiguration,
-    type GroupConfiguration,
     type InstanceConfiguration,
     createDefaultConfiguration,
 } from './shared/configuration.js';
 import { SecretServiceBackend } from './instances/secret-service.js';
 import { buildInstancePreferencesPage } from './instances/preferences.js';
-import { buildEntityRows, buildPreferencesView } from './preferences/view.js';
+import { buildEntityRows } from './preferences/view.js';
 import { runSafely } from './shared/action-runner.js';
 
 function messageFrom(error: unknown): string {
@@ -70,63 +68,15 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
                 runAsyncAction: action => this.#runAsyncAction(action),
                 updateTokenStatus: (row, baseUrl, instanceId) =>
                     this.#updateTokenStatus(row, baseUrl, instanceId),
-            }), this.#buildGroupsPage()],
+            }), buildGroupPreferencesPage({
+                configuration: this.#configuration,
+                window: this.#window,
+                manageEntities: groupId => this.#manageEntities(groupId),
+                persist: configuration => this.#persist(configuration, true),
+                runAction: action => this.#runAction(action),
+            })],
             showGroups ? 1 : 0,
         );
-    }
-
-    #buildGroupsPage(): Adw.PreferencesPage {
-        const view = buildPreferencesView(this.#configuration);
-        const page = new Adw.PreferencesPage({
-            title: _('Groups'),
-            icon_name: 'view-list-symbolic',
-        });
-        const group = new Adw.PreferencesGroup({
-            title: _('Display groups'),
-            description: _('Groups appear in this order in the top bar.'),
-        });
-        const addButton = this.#iconButton('list-add-symbolic', _('Add group'));
-        addButton.sensitive = view.canAddGroup;
-        addButton.connect('clicked', () => this.#runAction(() => this.#editGroup()));
-        group.header_suffix = addButton;
-
-        if (view.groupRows.length === 0) {
-            group.add(new Adw.ActionRow({
-                title: _('No groups configured'),
-                subtitle: this.#configuration.instances.length === 0
-                    ? _('Add a Home Assistant instance before creating a group.')
-                    : _('Add a display group to get started.'),
-            }));
-        }
-
-        view.groupRows.forEach((item) => {
-            const displayGroup = this.#configuration.groups.find(candidate => candidate.id === item.id)!;
-            const row = new Adw.ActionRow({
-                title: item.title,
-                subtitle: item.subtitle,
-            });
-            const upButton = this.#iconButton('go-up-symbolic', _('Move group up'));
-            const downButton = this.#iconButton('go-down-symbolic', _('Move group down'));
-            const entitiesButton = this.#iconButton('view-list-symbolic', _('Manage entities'));
-            const editButton = this.#iconButton('document-edit-symbolic', _('Edit group'));
-            const deleteButton = this.#iconButton('user-trash-symbolic', _('Delete group'));
-            upButton.sensitive = item.canMoveUp;
-            downButton.sensitive = item.canMoveDown;
-            upButton.connect('clicked', () => this.#runAction(() => this.#moveGroup(displayGroup, -1)));
-            downButton.connect('clicked', () => this.#runAction(() => this.#moveGroup(displayGroup, 1)));
-            entitiesButton.connect('clicked', () => this.#runAction(() => this.#manageEntities(displayGroup.id)));
-            editButton.connect('clicked', () => this.#runAction(() => this.#editGroup(displayGroup)));
-            deleteButton.connect('clicked', () => this.#runAction(() => this.#deleteGroup(displayGroup)));
-            row.add_suffix(upButton);
-            row.add_suffix(downButton);
-            row.add_suffix(entitiesButton);
-            row.add_suffix(editButton);
-            row.add_suffix(deleteButton);
-            group.add(row);
-        });
-
-        page.add(group);
-        return page;
     }
 
     #iconButton(iconName: string, tooltipText: string): Gtk.Button {
@@ -137,88 +87,6 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
         });
         button.add_css_class('flat');
         return button;
-    }
-
-    #editGroup(existing?: GroupConfiguration): void {
-        const id = existing?.id ?? GLib.uuid_string_random();
-        const instanceNames = this.#configuration.instances
-            .map(instance => `${instance.name} · ${instance.baseUrl}`);
-        const selected = existing
-            ? this.#configuration.instances.findIndex(instance => instance.id === existing.instanceId)
-            : 0;
-        const dialog = new Adw.AlertDialog({
-            heading: existing ? _('Edit group') : _('Add group'),
-        });
-        const fields = new Adw.PreferencesGroup();
-        const instanceRow = new Adw.ComboRow({
-            title: _('Home Assistant instance'),
-            model: Gtk.StringList.new(instanceNames),
-            selected,
-        });
-        const nameRow = new Adw.EntryRow({ title: _('Name'), text: existing?.name ?? '' });
-        const pathRow = new Adw.EntryRow({ title: _('Dashboard path'), text: existing?.dashboardPath ?? '/' });
-        fields.add(instanceRow);
-        fields.add(nameRow);
-        fields.add(pathRow);
-        dialog.extra_child = fields;
-        dialog.add_response('cancel', _('Cancel'));
-        dialog.add_response('save', existing ? _('Save') : _('Add'));
-        dialog.close_response = 'cancel';
-        dialog.default_response = 'save';
-        dialog.set_response_appearance('save', Adw.ResponseAppearance.SUGGESTED);
-
-        let candidate: ConfigurationV1 | null = null;
-        const validate = (): void => {
-            const instance = this.#configuration.instances[instanceRow.selected];
-            try {
-                if (!instance)
-                    throw new Error(_('Select a Home Assistant instance.'));
-                candidate = upsertGroup(this.#configuration, {
-                    id,
-                    instanceId: instance.id,
-                    name: nameRow.text.trim(),
-                    dashboardPath: pathRow.text.trim(),
-                    entities: existing?.entities ?? [],
-                });
-                dialog.body = '';
-                dialog.set_response_enabled('save', true);
-            }
-            catch (error) {
-                candidate = null;
-                dialog.body = messageFrom(error).replace('Invalid configuration: ', '');
-                dialog.set_response_enabled('save', false);
-            }
-        };
-        instanceRow.connect('notify::selected', validate);
-        nameRow.connect('changed', validate);
-        pathRow.connect('changed', validate);
-        validate();
-
-        dialog.connect('response', (_dialog, response) => this.#runAction(() => {
-            if (response === 'save' && candidate !== null)
-                this.#persist(candidate, true);
-        }));
-        dialog.present(this.#window);
-    }
-
-    #deleteGroup(group: GroupConfiguration): void {
-        const dialog = new Adw.AlertDialog({
-            heading: _('Delete “%s”?').format(group.name),
-            body: _('This also removes every entity configured in this group.'),
-        });
-        dialog.add_response('cancel', _('Cancel'));
-        dialog.add_response('delete', _('Delete'));
-        dialog.close_response = 'cancel';
-        dialog.set_response_appearance('delete', Adw.ResponseAppearance.DESTRUCTIVE);
-        dialog.connect('response', (_dialog, response) => this.#runAction(() => {
-            if (response === 'delete')
-                this.#persist(removeGroup(this.#configuration, group.id), true);
-        }));
-        dialog.present(this.#window);
-    }
-
-    #moveGroup(group: GroupConfiguration, direction: -1 | 1): void {
-        this.#persist(moveGroup(this.#configuration, group.id, direction), true);
     }
 
     #manageEntities(groupId: string): void {
