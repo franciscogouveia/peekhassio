@@ -56,8 +56,8 @@ known limitations, upgrade behavior, and validation evidence.
 - A Home Assistant long-lived access token
 - GNOME Secret Service, normally provided by GNOME Keyring
 
-Building from source additionally requires Node.js 24, npm 11, and the
-`gnome-extensions` command supplied by GNOME Shell tooling.
+Building from source additionally requires Node.js 24, npm 11, `unzip`, and
+the `gnome-extensions` command supplied by GNOME Shell tooling.
 
 ## Install from source
 

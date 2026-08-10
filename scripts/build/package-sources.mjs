@@ -44,3 +44,22 @@ export function assertRuntimeModulesPackaged(modules, extraSources) {
     if (missing.length > 0)
         throw new Error(`Package omits runtime modules: ${missing.join(', ')}`);
 }
+
+export function assertExtensionPackage(entries, runtimeModules) {
+    const files = entries.filter(entry => !entry.endsWith('/')).sort();
+    const expected = [
+        ...runtimeModules,
+        'metadata.json',
+        'schemas/gschemas.compiled',
+        'schemas/org.gnome.shell.extensions.peekhassio.gschema.xml',
+    ].sort();
+    const unsafe = files.filter(file => file.startsWith('/') || file.split('/').includes('..'));
+    if (unsafe.length > 0)
+        throw new Error(`Package contains unsafe paths: ${unsafe.join(', ')}`);
+    const missing = expected.filter(file => !files.includes(file));
+    if (missing.length > 0)
+        throw new Error(`Package omits required files: ${missing.join(', ')}`);
+    const unexpected = files.filter(file => !expected.includes(file));
+    if (unexpected.length > 0)
+        throw new Error(`Package contains unnecessary files: ${unexpected.join(', ')}`);
+}
