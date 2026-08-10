@@ -45,7 +45,7 @@ export function incrementCredentialRevision(settings: RevisionSettings): void {
         throw new Error('Could not notify the extension about the credential change.');
 }
 
-function invariant(condition: boolean, message: string): asserts condition {
+export function invariant(condition: boolean, message: string): asserts condition {
     if (!condition)
         throw new Error(`Invalid configuration: ${message}`);
 }
@@ -54,7 +54,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
     return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-function isHttpBaseUrl(value: string): boolean {
+export function isHttpBaseUrl(value: string): boolean {
     try {
         const uri = GLib.Uri.parse(value, GLib.UriFlags.NONE);
         return ['http', 'https'].includes(uri.get_scheme())
@@ -65,7 +65,7 @@ function isHttpBaseUrl(value: string): boolean {
     }
 }
 
-function isDashboardPath(value: string): boolean {
+export function isDashboardPath(value: string): boolean {
     if (!value.startsWith('/') || value.startsWith('//'))
         return false;
 
@@ -146,114 +146,6 @@ export function serializeConfiguration(configuration: ConfigurationV1): string {
 
 export function createDefaultConfiguration(): ConfigurationV1 {
     return { version: CONFIGURATION_VERSION, instances: [], groups: [] };
-}
-
-export function upsertInstance(configuration: ConfigurationV1, instance: InstanceConfiguration): ConfigurationV1 {
-    const existingIndex = configuration.instances.findIndex(candidate => candidate.id === instance.id);
-    const instances = existingIndex === -1
-        ? [...configuration.instances, instance]
-        : configuration.instances.map(candidate => candidate.id === instance.id ? instance : candidate);
-    return parseConfigurationValue({ ...configuration, instances });
-}
-
-export function removeInstance(configuration: ConfigurationV1, instanceId: string): ConfigurationV1 {
-    invariant(configuration.instances.some(instance => instance.id === instanceId), `instance id ${instanceId} must exist`);
-    invariant(!configuration.groups.some(group => group.instanceId === instanceId), `instance id ${instanceId} must not be referenced by a group`);
-    return parseConfigurationValue({
-        ...configuration,
-        instances: configuration.instances.filter(instance => instance.id !== instanceId),
-    });
-}
-
-export function upsertGroup(configuration: ConfigurationV1, group: GroupConfiguration): ConfigurationV1 {
-    const existingIndex = configuration.groups.findIndex(candidate => candidate.id === group.id);
-    const groups = existingIndex === -1
-        ? [...configuration.groups, group]
-        : configuration.groups.map(candidate => candidate.id === group.id ? group : candidate);
-    return parseConfigurationValue({ ...configuration, groups });
-}
-
-export function removeGroup(configuration: ConfigurationV1, groupId: string): ConfigurationV1 {
-    invariant(configuration.groups.some(group => group.id === groupId), `group id ${groupId} must exist`);
-    return parseConfigurationValue({
-        ...configuration,
-        groups: configuration.groups.filter(group => group.id !== groupId),
-    });
-}
-
-export function moveGroup(configuration: ConfigurationV1, groupId: string, direction: -1 | 1): ConfigurationV1 {
-    const currentIndex = configuration.groups.findIndex(group => group.id === groupId);
-    invariant(currentIndex !== -1, `group id ${groupId} must exist`);
-    const targetIndex = currentIndex + direction;
-    invariant(targetIndex >= 0 && targetIndex < configuration.groups.length, `group id ${groupId} cannot move further`);
-    const groups = [...configuration.groups];
-    const currentGroup = groups[currentIndex]!;
-    groups[currentIndex] = groups[targetIndex]!;
-    groups[targetIndex] = currentGroup;
-    return parseConfigurationValue({ ...configuration, groups });
-}
-
-export function upsertEntity(
-    configuration: ConfigurationV1,
-    groupId: string,
-    previousEntityId: string | null,
-    entity: EntityConfiguration,
-): ConfigurationV1 {
-    const group = configuration.groups.find(candidate => candidate.id === groupId);
-    invariant(group !== undefined, `group id ${groupId} must exist`);
-    const existingIndex = previousEntityId === null
-        ? -1
-        : group.entities.findIndex(candidate => candidate.entityId === previousEntityId);
-    invariant(previousEntityId === null || existingIndex !== -1, `entity id ${previousEntityId} must exist`);
-    invariant(!group.entities.some((candidate, index) =>
-        candidate.entityId === entity.entityId && index !== existingIndex),
-    `entity id ${entity.entityId} must be unique within its group`);
-    const normalized = entity.unitOverride?.trim()
-        ? { ...entity, unitOverride: entity.unitOverride.trim() }
-        : { entityId: entity.entityId };
-    const entities = existingIndex === -1
-        ? [...group.entities, normalized]
-        : group.entities.map((candidate, index) => index === existingIndex ? normalized : candidate);
-    return upsertGroup(configuration, { ...group, entities });
-}
-
-export function removeEntity(configuration: ConfigurationV1, groupId: string, entityId: string): ConfigurationV1 {
-    const group = configuration.groups.find(candidate => candidate.id === groupId);
-    invariant(group !== undefined, `group id ${groupId} must exist`);
-    invariant(group.entities.some(entity => entity.entityId === entityId), `entity id ${entityId} must exist`);
-    return upsertGroup(configuration, {
-        ...group,
-        entities: group.entities.filter(entity => entity.entityId !== entityId),
-    });
-}
-
-export function moveEntity(
-    configuration: ConfigurationV1,
-    groupId: string,
-    entityId: string,
-    direction: -1 | 1,
-): ConfigurationV1 {
-    const group = configuration.groups.find(candidate => candidate.id === groupId);
-    invariant(group !== undefined, `group id ${groupId} must exist`);
-    const currentIndex = group.entities.findIndex(entity => entity.entityId === entityId);
-    invariant(currentIndex !== -1, `entity id ${entityId} must exist`);
-    const targetIndex = currentIndex + direction;
-    invariant(targetIndex >= 0 && targetIndex < group.entities.length, `entity id ${entityId} cannot move further`);
-    const entities = [...group.entities];
-    [entities[currentIndex], entities[targetIndex]] = [entities[targetIndex]!, entities[currentIndex]!];
-    return upsertGroup(configuration, { ...group, entities });
-}
-
-export function buildDashboardUrl(instance: InstanceConfiguration, group: GroupConfiguration): string {
-    invariant(isHttpBaseUrl(instance.baseUrl), 'instance baseUrl must be an HTTP(S) base URL without a query or fragment');
-    invariant(isDashboardPath(group.dashboardPath), 'group dashboardPath must start with one slash');
-    return GLib.Uri.resolve_relative(instance.baseUrl, group.dashboardPath, GLib.UriFlags.NONE);
-}
-
-export function buildWebSocketUrl(instance: InstanceConfiguration): string {
-    invariant(isHttpBaseUrl(instance.baseUrl), 'instance baseUrl must be an HTTP(S) base URL without a query or fragment');
-    const httpUrl = GLib.Uri.resolve_relative(instance.baseUrl, '/api/websocket', GLib.UriFlags.NONE);
-    return httpUrl.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:');
 }
 
 export class ConfigurationStore {

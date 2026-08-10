@@ -2,26 +2,19 @@
 
 import System from 'system';
 
+import { moveEntity, removeEntity, upsertEntity } from '../../dist/entities/configuration.js';
+import { buildDashboardUrl, moveGroup, removeGroup, upsertGroup } from '../../dist/groups/configuration.js';
+import { buildWebSocketUrl, removeInstance, upsertInstance } from '../../dist/instances/configuration.js';
 import { runSafely } from '../../dist/shared/action-runner.js';
 import {
     CONFIGURATION_KEY,
     CREDENTIAL_REVISION_KEY,
     ConfigurationStore,
-    buildDashboardUrl,
-    buildWebSocketUrl,
     createDefaultConfiguration,
     incrementCredentialRevision,
-    moveEntity,
-    moveGroup,
     parseConfigurationJson,
     parseConfigurationValue,
-    removeInstance,
-    removeGroup,
-    removeEntity,
     serializeConfiguration,
-    upsertInstance,
-    upsertGroup,
-    upsertEntity,
 } from '../../dist/shared/configuration.js';
 import { buildEntityRows, buildPreferencesView } from '../../dist/preferences/view.js';
 import { assertThrowsMatching } from './assertions.mjs';

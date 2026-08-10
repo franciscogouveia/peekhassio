@@ -6,6 +6,9 @@ import Gtk from 'gi://Gtk';
 import { ExtensionPreferences, gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 import { CredentialStore } from './instances/credential-store.js';
+import { moveEntity, removeEntity, upsertEntity } from './entities/configuration.js';
+import { moveGroup, removeGroup, upsertGroup } from './groups/configuration.js';
+import { removeInstance, upsertInstance } from './instances/configuration.js';
 import {
     ConfigurationStore,
     type ConfigurationV1,
@@ -14,14 +17,6 @@ import {
     type InstanceConfiguration,
     createDefaultConfiguration,
     incrementCredentialRevision,
-    moveEntity,
-    moveGroup,
-    removeGroup,
-    removeEntity,
-    removeInstance,
-    upsertGroup,
-    upsertEntity,
-    upsertInstance,
 } from './shared/configuration.js';
 import { SecretServiceBackend } from './instances/secret-service.js';
 import { buildEntityRows, buildPreferencesView } from './preferences/view.js';
