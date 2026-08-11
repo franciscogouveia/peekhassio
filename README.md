@@ -6,8 +6,8 @@ without opening the Home Assistant dashboard.
 
 The name combines “peek” with “Hassio,” while sounding like “Picasso.”
 
-Peekhassio 1.0.0 is feature-complete and preparing for its first release. It
-targets and has been manually tested with GNOME Shell 50 only.
+Peekhassio 1.0.1 is feature-complete. It targets and has been manually tested
+with GNOME Shell 50 only.
 
 This GitHub repository is a public mirror of Peekhassio's source code. Report
 bugs and feature requests by leaving a comment on Peekhassio's page on
