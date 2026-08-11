@@ -1,6 +1,7 @@
 name: Tagged release
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - '**'
@@ -56,6 +57,7 @@ jobs:
         run: sha256sum peekhassio@de-gouveia.eu.shell-extension.zip > peekhassio@de-gouveia.eu.shell-extension.zip.sha256
 
       - name: Publish GitHub release
+        if: github.ref_type == 'tag'
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}

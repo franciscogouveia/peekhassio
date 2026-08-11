@@ -138,7 +138,8 @@ Tags mirrored to GitHub trigger the GitHub Actions release workflow. It runs the
 complete Node and GJS checks, packages the tagged commit, analyzes the archive
 with a pinned Shexli version, creates a SHA-256 checksum, and publishes both
 files in a GitHub Release. Rerunning the workflow replaces the existing release
-assets instead of creating a duplicate release.
+assets instead of creating a duplicate release. The workflow can also be run
+manually to validate checks, packaging, and Shexli without publishing a release.
 
 Test authenticated Shell integration in a nested GNOME 50 Wayland session with
 a dedicated Secret Service provider:
