@@ -27,6 +27,11 @@ jobs:
           node-version: 24.19.0
           cache: npm
 
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
       - name: Install GNOME tooling
         run: |
           sudo apt-get update
@@ -40,6 +45,12 @@ jobs:
 
       - name: Package extension
         run: npm run package
+
+      - name: Install Shexli
+        run: python -m pip install shexli==0.2.1
+
+      - name: Analyze extension package
+        run: shexli peekhassio@de-gouveia.eu.shell-extension.zip
 
       - name: Create checksum
         run: sha256sum peekhassio@de-gouveia.eu.shell-extension.zip > peekhassio@de-gouveia.eu.shell-extension.zip.sha256
