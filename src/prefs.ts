@@ -20,21 +20,35 @@ function messageFrom(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
 }
 
+interface PreferencesContext {
+    configuration: ConfigurationV1;
+    credentials: CredentialStore;
+    pages: Adw.PreferencesPage[];
+    settings: Gio.Settings;
+    store: ConfigurationStore;
+    window: Adw.PreferencesWindow;
+}
+
 export default class PeekhassioPreferences extends ExtensionPreferences {
-    #configuration!: ConfigurationV1;
-    #credentials!: CredentialStore;
-    #pages: Adw.PreferencesPage[] = [];
-    #settings!: Gio.Settings;
-    #store!: ConfigurationStore;
-    #window!: Adw.PreferencesWindow;
+    #context: PreferencesContext | null = null;
 
     async fillPreferencesWindow(window: Adw.PreferencesWindow): Promise<void> {
-        this.#window = window;
-        this.#settings = this.getSettings();
-        this.#store = new ConfigurationStore(this.#settings);
-        this.#credentials = new CredentialStore(new SecretServiceBackend());
+        const settings = this.getSettings();
+        const store = new ConfigurationStore(settings);
+        this.#context = {
+            configuration: createDefaultConfiguration(),
+            credentials: new CredentialStore(new SecretServiceBackend()),
+            pages: [],
+            settings,
+            store,
+            window,
+        };
+        window.connect('close-request', () => {
+            this.#context = null;
+            return false;
+        });
         try {
-            this.#configuration = this.#store.load();
+            this.#context.configuration = store.load();
             this.#renderPreferences();
         }
         catch (error) {
@@ -42,33 +56,41 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
         }
     }
 
+    #activeContext(): PreferencesContext {
+        if (this.#context === null)
+            throw new Error('Preferences window is closed.');
+        return this.#context;
+    }
+
     #replacePages(pages: Adw.PreferencesPage[], visibleIndex = 0): void {
-        this.#pages.forEach(page => this.#window.remove(page));
-        this.#pages = pages;
-        pages.forEach(page => this.#window.add(page));
-        this.#window.visible_page = pages[visibleIndex]!;
+        const context = this.#activeContext();
+        context.pages.forEach(page => context.window.remove(page));
+        context.pages = pages;
+        pages.forEach(page => context.window.add(page));
+        context.window.visible_page = pages[visibleIndex]!;
     }
 
     #renderPreferences(showGroups = false): void {
+        const context = this.#activeContext();
         this.#replacePages(
             [buildInstancePreferencesPage({
-                configuration: this.#configuration,
-                credentials: this.#credentials,
-                settings: this.#settings,
-                window: this.#window,
+                configuration: context.configuration,
+                credentials: context.credentials,
+                settings: context.settings,
+                window: context.window,
                 persist: configuration => this.#persist(configuration),
                 persistOrThrow: configuration => this.#persistOrThrow(configuration),
                 refresh: () => this.#renderPreferences(),
                 runAction: action => this.#runAction(action),
                 runAsyncAction: action => this.#runAsyncAction(action),
             }), buildGroupPreferencesPage({
-                configuration: this.#configuration,
-                window: this.#window,
+                configuration: context.configuration,
+                window: context.window,
                 manageEntities: groupId => manageEntities({
-                    getConfiguration: () => this.#configuration,
+                    getConfiguration: () => this.#activeContext().configuration,
                     persist: (configuration, refresh) => this.#persistEntityChange(configuration, refresh),
                     runAction: action => this.#runAction(action),
-                    window: this.#window,
+                    window: context.window,
                 }, groupId),
                 persist: configuration => this.#persist(configuration, true),
                 runAction: action => this.#runAction(action),
@@ -78,8 +100,9 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
     }
 
     #persistEntityChange(configuration: ConfigurationV1, refresh: () => void): void {
-        this.#store.save(configuration);
-        this.#configuration = configuration;
+        const context = this.#activeContext();
+        context.store.save(configuration);
+        context.configuration = configuration;
         this.#renderPreferences(true);
         refresh();
     }
@@ -94,8 +117,9 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
     }
 
     #persistOrThrow(configuration: ConfigurationV1, showGroups = false): void {
-        this.#store.save(configuration);
-        this.#configuration = configuration;
+        const context = this.#activeContext();
+        context.store.save(configuration);
+        context.configuration = configuration;
         this.#renderPreferences(showGroups);
     }
 
@@ -128,13 +152,13 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
             if (response === 'reset')
                 this.#persist(createDefaultConfiguration());
         }));
-        dialog.present(this.#window);
+        dialog.present(this.#activeContext().window);
     }
 
     #showMessage(heading: string, body: string): void {
         const dialog = new Adw.AlertDialog({ heading, body });
         dialog.add_response('close', _('Close'));
-        dialog.present(this.#window);
+        dialog.present(this.#activeContext().window);
     }
 
     #runAction(action: () => void): void {
