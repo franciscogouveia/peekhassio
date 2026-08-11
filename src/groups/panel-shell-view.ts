@@ -17,111 +17,136 @@ export interface ShellPanelActions {
     openSettings(): void;
 }
 
-class ShellGroupWidget implements PanelGroupWidget {
-    readonly #actions: ShellPanelActions;
-    readonly #button: PanelMenu.Button;
-    readonly #menu: PopupMenu.PopupMenu;
-    readonly #name: St.Label;
-    readonly #values: St.BoxLayout;
-    readonly #warning: St.Icon;
-    #actionError: PopupMenu.PopupMenuItem | null = null;
-    #dashboardUrl = '';
-    #entityRows: {
+interface ShellGroupViewContext {
+    actionError: PopupMenu.PopupMenuItem | null;
+    button: PanelMenu.Button;
+    dashboardUrl: string;
+    entityRows: {
         id: string;
         lastUpdate: St.Label;
         value: St.Label;
-    }[] = [];
+    }[];
+    menu: PopupMenu.PopupMenu;
+    name: St.Label;
+    valueLabels: St.Label[];
+    values: St.BoxLayout;
+    warning: St.Icon;
+    warningDescription: St.Label | null;
+    warningItem: PopupMenu.PopupBaseMenuItem | null;
+    warningTitle: St.Label | null;
+}
 
-    #warningDescription: St.Label | null = null;
-    #warningItem: PopupMenu.PopupBaseMenuItem | null = null;
-    #warningTitle: St.Label | null = null;
-    #valueLabels: St.Label[] = [];
+class ShellGroupWidget implements PanelGroupWidget {
+    readonly #actions: ShellPanelActions;
+    #context: ShellGroupViewContext | null;
 
     constructor(view: PanelGroupViewModel, position: number, actions: ShellPanelActions) {
         this.#actions = actions;
-        this.#button = new PanelMenu.Button(0.5, view.accessibleName);
-        this.#menu = this.#button.menu as PopupMenu.PopupMenu;
+        const button = new PanelMenu.Button(0.5, view.accessibleName);
         const content = new St.BoxLayout({
             style: 'font-size: 0.9em; spacing: 4px;',
             y_align: Clutter.ActorAlign.CENTER,
         });
-        this.#name = new St.Label({ y_align: Clutter.ActorAlign.CENTER });
-        this.#name.opacity = 160;
-        this.#warning = new St.Icon({
+        const name = new St.Label({ y_align: Clutter.ActorAlign.CENTER });
+        name.opacity = 160;
+        const warning = new St.Icon({
             icon_name: 'dialog-warning-symbolic',
             icon_size: 16,
             style: 'color: #f6d32d;',
             y_align: Clutter.ActorAlign.CENTER,
         });
-        this.#values = new St.BoxLayout({
+        const values = new St.BoxLayout({
             style: 'spacing: 6px;',
             y_align: Clutter.ActorAlign.CENTER,
         });
-        content.add_child(this.#name);
-        content.add_child(this.#warning);
-        content.add_child(this.#values);
-        this.#button.add_child(content);
-        Main.panel.addToStatusArea(`peekhassio-${view.id}`, this.#button, position, 'right');
+        content.add_child(name);
+        content.add_child(warning);
+        content.add_child(values);
+        button.add_child(content);
+        this.#context = {
+            actionError: null,
+            button,
+            dashboardUrl: '',
+            entityRows: [],
+            menu: button.menu as PopupMenu.PopupMenu,
+            name,
+            valueLabels: [],
+            values,
+            warning,
+            warningDescription: null,
+            warningItem: null,
+            warningTitle: null,
+        };
+        Main.panel.addToStatusArea(`peekhassio-${view.id}`, button, position, 'right');
         this.update(view);
     }
 
+    #activeContext(): ShellGroupViewContext {
+        if (this.#context === null)
+            throw new Error('Panel group widget is destroyed.');
+        return this.#context;
+    }
+
     update(view: PanelGroupViewModel): void {
-        this.#dashboardUrl = view.dashboardUrl;
-        this.#name.text = view.name;
-        while (this.#valueLabels.length > view.values.length)
-            this.#valueLabels.pop()!.destroy();
-        while (this.#valueLabels.length < view.values.length) {
+        const context = this.#activeContext();
+        context.dashboardUrl = view.dashboardUrl;
+        context.name.text = view.name;
+        while (context.valueLabels.length > view.values.length)
+            context.valueLabels.pop()!.destroy();
+        while (context.valueLabels.length < view.values.length) {
             const label = new St.Label({ y_align: Clutter.ActorAlign.CENTER });
-            this.#valueLabels.push(label);
-            this.#values.add_child(label);
+            context.valueLabels.push(label);
+            context.values.add_child(label);
         }
         view.values.forEach((value, index) => {
-            this.#valueLabels[index]!.text = value;
+            context.valueLabels[index]!.text = value;
         });
-        this.#warning.visible = view.degraded;
-        this.#button.set_accessible_name(view.accessibleName);
+        context.warning.visible = view.degraded;
+        context.button.set_accessible_name(view.accessibleName);
         this.#updateMenu(view);
     }
 
     #updateMenu(view: PanelGroupViewModel): void {
+        const context = this.#activeContext();
         const ids = view.entities.map(entity => entity.id);
-        if (this.#warningItem === null || ids.length !== this.#entityRows.length
-            || ids.some((id, index) => id !== this.#entityRows[index]?.id))
+        if (context.warningItem === null || ids.length !== context.entityRows.length
+            || ids.some((id, index) => id !== context.entityRows[index]?.id))
             this.#rebuildMenu(view);
-        this.#warningItem!.visible = view.warning !== null;
-        this.#warningTitle!.text = view.warning?.title ?? '';
-        this.#warningDescription!.text = view.warning?.description ?? '';
-        this.#warningDescription!.visible = view.warning?.description !== undefined;
+        context.warningItem!.visible = view.warning !== null;
+        context.warningTitle!.text = view.warning?.title ?? '';
+        context.warningDescription!.text = view.warning?.description ?? '';
+        context.warningDescription!.visible = view.warning?.description !== undefined;
         view.entities.forEach((entity, index) => {
-            const row = this.#entityRows[index]!;
+            const row = context.entityRows[index]!;
             row.value.text = entity.value;
             row.lastUpdate.text = `Last update: ${entity.lastUpdate}`;
         });
     }
 
     #rebuildMenu(view: PanelGroupViewModel): void {
-        this.#menu.removeAll();
-        this.#entityRows = [];
-        this.#warningItem = new PopupMenu.PopupBaseMenuItem({ reactive: false, can_focus: false });
+        const context = this.#activeContext();
+        context.menu.removeAll();
+        context.entityRows = [];
+        context.warningItem = new PopupMenu.PopupBaseMenuItem({ reactive: false, can_focus: false });
         const warningIcon = new St.Icon({
             icon_name: 'dialog-warning-symbolic',
             style: 'color: #f6d32d;',
             y_align: Clutter.ActorAlign.START,
         });
         const warningText = new St.BoxLayout({ vertical: true });
-        this.#warningTitle = new St.Label({ style: 'color: #f6d32d;' });
-        this.#warningDescription = new St.Label();
-        warningText.add_child(this.#warningTitle);
-        warningText.add_child(this.#warningDescription);
-        this.#warningItem.add_child(warningIcon);
-        this.#warningItem.add_child(warningText);
-        this.#menu.addMenuItem(this.#warningItem);
+        context.warningTitle = new St.Label({ style: 'color: #f6d32d;' });
+        context.warningDescription = new St.Label();
+        warningText.add_child(context.warningTitle);
+        warningText.add_child(context.warningDescription);
+        context.warningItem.add_child(warningIcon);
+        context.warningItem.add_child(warningText);
+        context.menu.addMenuItem(context.warningItem);
         const emptyItem = new PopupMenu.PopupMenuItem('No entities configured', {
             reactive: false,
             can_focus: false,
         });
         emptyItem.visible = view.entities.length === 0;
-        this.#menu.addMenuItem(emptyItem);
+        context.menu.addMenuItem(emptyItem);
         view.entities.forEach((entity) => {
             const item = new PopupMenu.PopupBaseMenuItem({ reactive: false, can_focus: false });
             const details = new St.BoxLayout({ vertical: true, x_expand: true });
@@ -135,16 +160,16 @@ class ShellGroupWidget implements PanelGroupWidget {
             details.add_child(current);
             details.add_child(lastUpdate);
             item.add_child(details);
-            this.#menu.addMenuItem(item);
-            this.#entityRows.push({ id: entity.id, lastUpdate, value });
+            context.menu.addMenuItem(item);
+            context.entityRows.push({ id: entity.id, lastUpdate, value });
         });
-        this.#menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        context.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
         const actionItem = new PopupMenu.PopupBaseMenuItem({ reactive: false, can_focus: false });
         const actions = new St.BoxLayout({ style: 'spacing: 8px;', x_align: Clutter.ActorAlign.CENTER, x_expand: true });
         const dashboard = this.#actionButton('view-grid-symbolic', 'Dashboard');
         const settings = this.#actionButton('preferences-system-symbolic', 'Settings');
         dashboard.connect('clicked', () => this.#runAction(
-            () => this.#actions.openDashboard(this.#dashboardUrl),
+            () => this.#actions.openDashboard(context.dashboardUrl),
             'Could not open the Home Assistant dashboard.',
         ));
         settings.connect('clicked', () => this.#runAction(
@@ -154,11 +179,11 @@ class ShellGroupWidget implements PanelGroupWidget {
         actions.add_child(dashboard);
         actions.add_child(settings);
         actionItem.add_child(actions);
-        this.#menu.addMenuItem(actionItem);
-        this.#actionError = new PopupMenu.PopupMenuItem('', { reactive: false, can_focus: false });
-        this.#actionError.style = 'color: #f6d32d;';
-        this.#actionError.visible = false;
-        this.#menu.addMenuItem(this.#actionError);
+        context.menu.addMenuItem(actionItem);
+        context.actionError = new PopupMenu.PopupMenuItem('', { reactive: false, can_focus: false });
+        context.actionError.style = 'color: #f6d32d;';
+        context.actionError.visible = false;
+        context.menu.addMenuItem(context.actionError);
     }
 
     #actionButton(iconName: string, accessibleName: string): St.Button {
@@ -172,22 +197,25 @@ class ShellGroupWidget implements PanelGroupWidget {
     }
 
     #runAction(action: () => void, failureMessage: string): void {
-        this.#actionError!.visible = false;
+        const context = this.#activeContext();
+        context.actionError!.visible = false;
         runPanelAction(
             action,
-            () => this.#menu.close(),
+            () => context.menu.close(),
             failureMessage,
             (message) => {
                 console.error(`Peekhassio panel action failed: ${message}`);
-                this.#actionError!.label.text = message;
-                this.#actionError!.visible = true;
+                context.actionError!.label.text = message;
+                context.actionError!.visible = true;
             },
             () => console.error('Peekhassio could not report a panel action failure.'),
         );
     }
 
     destroy(): void {
-        this.#button.destroy();
+        const context = this.#context;
+        this.#context = null;
+        context?.button.destroy();
     }
 }
 
