@@ -10,7 +10,7 @@ import {
     type InstanceConfiguration,
     incrementCredentialRevision,
 } from '../shared/configuration.js';
-import { upsertInstance } from './configuration.js';
+import { removeInstance, upsertInstance } from './configuration.js';
 import type { CredentialStore } from './credential-store.js';
 import { buildInstanceRows } from './view.js';
 
@@ -19,13 +19,11 @@ export interface InstancePreferencesContext {
     credentials: CredentialStore;
     settings: Gio.Settings;
     window: Adw.PreferencesWindow;
-    deleteInstance: (instance: InstanceConfiguration) => void;
     persist: (configuration: ConfigurationV1) => void;
     persistOrThrow: (configuration: ConfigurationV1) => void;
     refresh: () => void;
     runAction: (action: () => void) => void;
     runAsyncAction: (action: () => Promise<void>) => void;
-    updateTokenStatus: (row: Adw.ActionRow, baseUrl: string, instanceId: string) => void;
 }
 
 function messageFrom(error: unknown): string {
@@ -70,13 +68,13 @@ export function buildInstancePreferencesPage(context: InstancePreferencesContext
             subtitle: `${item.subtitle} · ${_('Checking token…')}`,
             subtitle_selectable: true,
         });
-        context.updateTokenStatus(row, item.subtitle, instance.id);
+        updateTokenStatus(context, row, item.subtitle, instance.id);
         const tokenButton = iconButton('dialog-password-symbolic', _('Manage access token'));
         const editButton = iconButton('document-edit-symbolic', _('Edit instance'));
         const deleteButton = iconButton('user-trash-symbolic', _('Delete instance'));
         tokenButton.connect('clicked', () => context.runAction(() => editToken(context, instance)));
         editButton.connect('clicked', () => context.runAction(() => editInstance(context, instance)));
-        deleteButton.connect('clicked', () => context.runAction(() => context.deleteInstance(instance)));
+        deleteButton.connect('clicked', () => context.runAction(() => deleteInstance(context, instance)));
         row.add_suffix(tokenButton);
         row.add_suffix(editButton);
         row.add_suffix(deleteButton);
@@ -85,6 +83,54 @@ export function buildInstancePreferencesPage(context: InstancePreferencesContext
 
     page.add(group);
     return page;
+}
+
+function deleteInstance(context: InstancePreferencesContext, instance: InstanceConfiguration): void {
+    const references = context.configuration.groups.filter(group => group.instanceId === instance.id).length;
+    if (references > 0) {
+        showMessage(
+            context.window,
+            _('Instance cannot be deleted'),
+            _('Remove or reassign its display groups first.'),
+        );
+        return;
+    }
+
+    const dialog = new Adw.AlertDialog({
+        heading: _('Delete “%s”?').format(instance.name),
+        body: _('This removes the instance from Peekhassio.'),
+    });
+    dialog.add_response('cancel', _('Cancel'));
+    dialog.add_response('delete', _('Delete'));
+    dialog.close_response = 'cancel';
+    dialog.set_response_appearance('delete', Adw.ResponseAppearance.DESTRUCTIVE);
+    dialog.connect('response', (_dialog, response) => context.runAsyncAction(async () => {
+        if (response === 'delete') {
+            await context.credentials.clearToken(instance.id);
+            context.persist(removeInstance(context.configuration, instance.id));
+        }
+    }));
+    dialog.present(context.window);
+}
+
+function updateTokenStatus(
+    context: InstancePreferencesContext,
+    row: Adw.ActionRow,
+    baseUrl: string,
+    instanceId: string,
+): void {
+    context.credentials.hasToken(instanceId).then((configured) => {
+        row.subtitle = `${baseUrl} · ${configured ? _('Token configured') : _('Token missing')}`;
+    }).catch(() => {
+        console.error('Peekhassio could not read an access token from Secret Service.');
+        row.subtitle = `${baseUrl} · ${_('Token status unavailable')}`;
+    });
+}
+
+function showMessage(window: Adw.PreferencesWindow, heading: string, body: string): void {
+    const dialog = new Adw.AlertDialog({ heading, body });
+    dialog.add_response('close', _('Close'));
+    dialog.present(window);
 }
 
 function editInstance(context: InstancePreferencesContext, existing?: InstanceConfiguration): void {

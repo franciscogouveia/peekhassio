@@ -7,11 +7,9 @@ import { ExtensionPreferences, gettext as _ } from 'resource:///org/gnome/Shell/
 import { CredentialStore } from './instances/credential-store.js';
 import { manageEntities } from './entities/preferences.js';
 import { buildGroupPreferencesPage } from './groups/preferences.js';
-import { removeInstance } from './instances/configuration.js';
 import {
     ConfigurationStore,
     type ConfigurationV1,
-    type InstanceConfiguration,
     createDefaultConfiguration,
 } from './shared/configuration.js';
 import { SecretServiceBackend } from './instances/secret-service.js';
@@ -58,14 +56,11 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
                 credentials: this.#credentials,
                 settings: this.#settings,
                 window: this.#window,
-                deleteInstance: instance => this.#deleteInstance(instance),
                 persist: configuration => this.#persist(configuration),
                 persistOrThrow: configuration => this.#persistOrThrow(configuration),
                 refresh: () => this.#renderPreferences(),
                 runAction: action => this.#runAction(action),
                 runAsyncAction: action => this.#runAsyncAction(action),
-                updateTokenStatus: (row, baseUrl, instanceId) =>
-                    this.#updateTokenStatus(row, baseUrl, instanceId),
             }), buildGroupPreferencesPage({
                 configuration: this.#configuration,
                 window: this.#window,
@@ -87,42 +82,6 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
         this.#configuration = configuration;
         this.#renderPreferences(true);
         refresh();
-    }
-
-    #deleteInstance(instance: InstanceConfiguration): void {
-        const references = this.#configuration.groups.filter(group => group.instanceId === instance.id).length;
-        if (references > 0) {
-            this.#showMessage(
-                _('Instance cannot be deleted'),
-                _('Remove or reassign its display groups first.'),
-            );
-            return;
-        }
-
-        const dialog = new Adw.AlertDialog({
-            heading: _('Delete “%s”?').format(instance.name),
-            body: _('This removes the instance from Peekhassio.'),
-        });
-        dialog.add_response('cancel', _('Cancel'));
-        dialog.add_response('delete', _('Delete'));
-        dialog.close_response = 'cancel';
-        dialog.set_response_appearance('delete', Adw.ResponseAppearance.DESTRUCTIVE);
-        dialog.connect('response', (_dialog, response) => this.#runAsyncAction(async () => {
-            if (response === 'delete') {
-                await this.#credentials.clearToken(instance.id);
-                this.#persist(removeInstance(this.#configuration, instance.id));
-            }
-        }));
-        dialog.present(this.#window);
-    }
-
-    #updateTokenStatus(row: Adw.ActionRow, baseUrl: string, instanceId: string): void {
-        this.#credentials.hasToken(instanceId).then((configured) => {
-            row.subtitle = `${baseUrl} · ${configured ? _('Token configured') : _('Token missing')}`;
-        }).catch(() => {
-            console.error('Peekhassio could not read an access token from Secret Service.');
-            row.subtitle = `${baseUrl} · ${_('Token status unavailable')}`;
-        });
     }
 
     #persist(configuration: ConfigurationV1, showGroups = false): void {
