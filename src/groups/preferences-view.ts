@@ -4,7 +4,7 @@ import Gtk from 'gi://Gtk';
 
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
-import { iconButton } from '../preferences/widgets.js';
+import { createIconButton } from '../gtk/icon-button.js';
 import type { ConfigurationV1, GroupConfiguration } from '../shared/configuration.js';
 import { moveGroup, removeGroup, upsertGroup } from './configuration.js';
 import { buildGroupViewModel } from './view-model.js';
@@ -31,7 +31,7 @@ export function buildGroupPreferencesPage(context: GroupPreferencesContext): Adw
         title: _('Display groups'),
         description: _('Groups appear in this order in the top bar.'),
     });
-    const addButton = iconButton('list-add-symbolic', _('Add group'));
+    const addButton = createIconButton('list-add-symbolic', _('Add group'));
     addButton.sensitive = viewModel.canAddGroup;
     addButton.connect('clicked', () => context.runAction(() => editGroup(context)));
     group.header_suffix = addButton;
@@ -48,11 +48,11 @@ export function buildGroupPreferencesPage(context: GroupPreferencesContext): Adw
     viewModel.rows.forEach((item) => {
         const displayGroup = context.configuration.groups.find(candidate => candidate.id === item.id)!;
         const row = new Adw.ActionRow({ title: item.title, subtitle: item.subtitle });
-        const upButton = iconButton('go-up-symbolic', _('Move group up'));
-        const downButton = iconButton('go-down-symbolic', _('Move group down'));
-        const entitiesButton = iconButton('view-list-symbolic', _('Manage entities'));
-        const editButton = iconButton('document-edit-symbolic', _('Edit group'));
-        const deleteButton = iconButton('user-trash-symbolic', _('Delete group'));
+        const upButton = createIconButton('go-up-symbolic', _('Move group up'));
+        const downButton = createIconButton('go-down-symbolic', _('Move group down'));
+        const entitiesButton = createIconButton('view-list-symbolic', _('Manage entities'));
+        const editButton = createIconButton('document-edit-symbolic', _('Edit group'));
+        const deleteButton = createIconButton('user-trash-symbolic', _('Delete group'));
         upButton.sensitive = item.canMoveUp;
         downButton.sensitive = item.canMoveDown;
         upButton.connect('clicked', () => context.runAction(() => moveDisplayGroup(context, displayGroup, -1)));

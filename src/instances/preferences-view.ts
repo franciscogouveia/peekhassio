@@ -4,7 +4,7 @@ import GLib from 'gi://GLib';
 
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
-import { iconButton } from '../preferences/widgets.js';
+import { createIconButton } from '../gtk/icon-button.js';
 import {
     type ConfigurationV1,
     type InstanceConfiguration,
@@ -40,7 +40,7 @@ export function buildInstancePreferencesPage(context: InstancePreferencesContext
         title: _('Home Assistant instances'),
         description: _('Instances provide the base address used by display groups.'),
     });
-    const addButton = iconButton('list-add-symbolic', _('Add instance'));
+    const addButton = createIconButton('list-add-symbolic', _('Add instance'));
     addButton.connect('clicked', () => context.runAction(() => editInstance(context)));
     group.header_suffix = addButton;
 
@@ -59,9 +59,9 @@ export function buildInstancePreferencesPage(context: InstancePreferencesContext
             subtitle_selectable: true,
         });
         updateTokenStatus(context, row, item.subtitle, instance.id);
-        const tokenButton = iconButton('dialog-password-symbolic', _('Manage access token'));
-        const editButton = iconButton('document-edit-symbolic', _('Edit instance'));
-        const deleteButton = iconButton('user-trash-symbolic', _('Delete instance'));
+        const tokenButton = createIconButton('dialog-password-symbolic', _('Manage access token'));
+        const editButton = createIconButton('document-edit-symbolic', _('Edit instance'));
+        const deleteButton = createIconButton('user-trash-symbolic', _('Delete instance'));
         tokenButton.connect('clicked', () => context.runAction(() => editToken(context, instance)));
         editButton.connect('clicked', () => context.runAction(() => editInstance(context, instance)));
         deleteButton.connect('clicked', () => context.runAction(() => deleteInstance(context, instance)));

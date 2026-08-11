@@ -2,7 +2,7 @@ import Adw from 'gi://Adw';
 
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
-import { iconButton } from '../preferences/widgets.js';
+import { createIconButton } from '../gtk/icon-button.js';
 import type { ConfigurationV1, EntityConfiguration } from '../shared/configuration.js';
 import { moveEntity, removeEntity, upsertEntity } from './configuration.js';
 import { buildEntityRowViewModels } from './view-model.js';
@@ -33,7 +33,7 @@ export function manageEntities(context: EntityPreferencesContext, groupId: strin
             title: group.name,
             description: _('Entities appear in this order.'),
         });
-        const addButton = iconButton('list-add-symbolic', _('Add entity'));
+        const addButton = createIconButton('list-add-symbolic', _('Add entity'));
         addButton.connect('clicked', () => context.runAction(() => editEntity(context, dialog, groupId, render)));
         rows.header_suffix = addButton;
 
@@ -47,10 +47,10 @@ export function manageEntities(context: EntityPreferencesContext, groupId: strin
         rowViewModels.forEach((item) => {
             const entity = group.entities.find(candidate => candidate.entityId === item.id)!;
             const row = new Adw.ActionRow({ title: item.title, subtitle: _(item.subtitle) });
-            const upButton = iconButton('go-up-symbolic', _('Move entity up'));
-            const downButton = iconButton('go-down-symbolic', _('Move entity down'));
-            const editButton = iconButton('document-edit-symbolic', _('Edit entity'));
-            const deleteButton = iconButton('user-trash-symbolic', _('Delete entity'));
+            const upButton = createIconButton('go-up-symbolic', _('Move entity up'));
+            const downButton = createIconButton('go-down-symbolic', _('Move entity down'));
+            const editButton = createIconButton('document-edit-symbolic', _('Edit entity'));
+            const deleteButton = createIconButton('user-trash-symbolic', _('Delete entity'));
             upButton.sensitive = item.canMoveUp;
             downButton.sensitive = item.canMoveDown;
             upButton.connect('clicked', () => context.runAction(() => context.persist(
