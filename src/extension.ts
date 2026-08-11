@@ -4,8 +4,8 @@ import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import { subscribeEntityStates } from './entities/state-client.js';
 import { buildDashboardUrl } from './groups/configuration.js';
-import { ShellPanelWidgetFactory } from './groups/panel-renderer.js';
-import { PanelViewController } from './groups/panel-view.js';
+import { PanelController } from './groups/panel-controller.js';
+import { ShellPanelWidgetFactory } from './groups/panel-shell-view.js';
 import { CredentialStore } from './instances/credential-store.js';
 import { buildWebSocketUrl } from './instances/configuration.js';
 import { connectAuthenticated } from './instances/home-assistant-client.js';
@@ -26,7 +26,7 @@ export default class PeekhassioExtension extends Extension {
         const credentials = new CredentialStore(new SecretServiceBackend());
         const scheduler = new GLibScheduler();
         const transport = new SoupWebSocketTransport();
-        const panel = new PanelViewController(new ShellPanelWidgetFactory({
+        const panel = new PanelController(new ShellPanelWidgetFactory({
             openDashboard: (url) => {
                 if (!Gio.AppInfo.launch_default_for_uri(url, null))
                     throw new Error('The default URI handler rejected the dashboard.');

@@ -5,12 +5,12 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
-import type {
-    PanelGroupView,
-    PanelGroupWidget,
-    PanelWidgetFactory,
-} from './panel-view.js';
-import { runPanelAction } from './panel-view.js';
+import {
+    runPanelAction,
+    type PanelGroupWidget,
+    type PanelWidgetFactory,
+} from './panel-controller.js';
+import type { PanelGroupViewModel } from './panel-view-model.js';
 
 export interface ShellPanelActions {
     openDashboard(url: string): void;
@@ -37,7 +37,7 @@ class ShellGroupWidget implements PanelGroupWidget {
     #warningTitle: St.Label | null = null;
     #valueLabels: St.Label[] = [];
 
-    constructor(view: PanelGroupView, position: number, actions: ShellPanelActions) {
+    constructor(view: PanelGroupViewModel, position: number, actions: ShellPanelActions) {
         this.#actions = actions;
         this.#button = new PanelMenu.Button(0.5, view.accessibleName);
         this.#menu = this.#button.menu as PopupMenu.PopupMenu;
@@ -65,7 +65,7 @@ class ShellGroupWidget implements PanelGroupWidget {
         this.update(view);
     }
 
-    update(view: PanelGroupView): void {
+    update(view: PanelGroupViewModel): void {
         this.#dashboardUrl = view.dashboardUrl;
         this.#name.text = view.name;
         while (this.#valueLabels.length > view.values.length)
@@ -83,7 +83,7 @@ class ShellGroupWidget implements PanelGroupWidget {
         this.#updateMenu(view);
     }
 
-    #updateMenu(view: PanelGroupView): void {
+    #updateMenu(view: PanelGroupViewModel): void {
         const ids = view.entities.map(entity => entity.id);
         if (this.#warningItem === null || ids.length !== this.#entityRows.length
             || ids.some((id, index) => id !== this.#entityRows[index]?.id))
@@ -99,7 +99,7 @@ class ShellGroupWidget implements PanelGroupWidget {
         });
     }
 
-    #rebuildMenu(view: PanelGroupView): void {
+    #rebuildMenu(view: PanelGroupViewModel): void {
         this.#menu.removeAll();
         this.#entityRows = [];
         this.#warningItem = new PopupMenu.PopupBaseMenuItem({ reactive: false, can_focus: false });
@@ -198,7 +198,7 @@ export class ShellPanelWidgetFactory implements PanelWidgetFactory {
         this.#actions = actions;
     }
 
-    create(view: PanelGroupView, position: number): PanelGroupWidget {
+    create(view: PanelGroupViewModel, position: number): PanelGroupWidget {
         return new ShellGroupWidget(view, position, this.#actions);
     }
 }
