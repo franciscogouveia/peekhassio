@@ -1,6 +1,6 @@
 import type { ConfigurationV1 } from '../shared/configuration.js';
 
-export interface GroupRowView {
+export interface GroupRowViewModel {
     id: string;
     title: string;
     subtitle: string;
@@ -8,12 +8,12 @@ export interface GroupRowView {
     canMoveDown: boolean;
 }
 
-export interface GroupView {
+export interface GroupViewModel {
     canAddGroup: boolean;
-    rows: GroupRowView[];
+    rows: GroupRowViewModel[];
 }
 
-export function buildGroupView(configuration: ConfigurationV1): GroupView {
+export function buildGroupViewModel(configuration: ConfigurationV1): GroupViewModel {
     const instanceNames = new Map(configuration.instances
         .map(instance => [instance.id, instance.name]));
     return {
