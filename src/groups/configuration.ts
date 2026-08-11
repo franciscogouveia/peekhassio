@@ -4,7 +4,7 @@ import {
     type ConfigurationV1,
     type GroupConfiguration,
     type InstanceConfiguration,
-    invariant,
+    assertValidConfiguration,
     isDashboardPath,
     isHttpBaseUrl,
     parseConfigurationValue,
@@ -19,7 +19,7 @@ export function upsertGroup(configuration: ConfigurationV1, group: GroupConfigur
 }
 
 export function removeGroup(configuration: ConfigurationV1, groupId: string): ConfigurationV1 {
-    invariant(configuration.groups.some(group => group.id === groupId), `group id ${groupId} must exist`);
+    assertValidConfiguration(configuration.groups.some(group => group.id === groupId), `group id ${groupId} must exist`);
     return parseConfigurationValue({
         ...configuration,
         groups: configuration.groups.filter(group => group.id !== groupId),
@@ -28,9 +28,9 @@ export function removeGroup(configuration: ConfigurationV1, groupId: string): Co
 
 export function moveGroup(configuration: ConfigurationV1, groupId: string, direction: -1 | 1): ConfigurationV1 {
     const currentIndex = configuration.groups.findIndex(group => group.id === groupId);
-    invariant(currentIndex !== -1, `group id ${groupId} must exist`);
+    assertValidConfiguration(currentIndex !== -1, `group id ${groupId} must exist`);
     const targetIndex = currentIndex + direction;
-    invariant(targetIndex >= 0 && targetIndex < configuration.groups.length, `group id ${groupId} cannot move further`);
+    assertValidConfiguration(targetIndex >= 0 && targetIndex < configuration.groups.length, `group id ${groupId} cannot move further`);
     const groups = [...configuration.groups];
     const currentGroup = groups[currentIndex]!;
     groups[currentIndex] = groups[targetIndex]!;
@@ -39,7 +39,7 @@ export function moveGroup(configuration: ConfigurationV1, groupId: string, direc
 }
 
 export function buildDashboardUrl(instance: InstanceConfiguration, group: GroupConfiguration): string {
-    invariant(isHttpBaseUrl(instance.baseUrl), 'instance baseUrl must be an HTTP(S) base URL without a query or fragment');
-    invariant(isDashboardPath(group.dashboardPath), 'group dashboardPath must start with one slash');
+    assertValidConfiguration(isHttpBaseUrl(instance.baseUrl), 'instance baseUrl must be an HTTP(S) base URL without a query or fragment');
+    assertValidConfiguration(isDashboardPath(group.dashboardPath), 'group dashboardPath must start with one slash');
     return GLib.Uri.resolve_relative(instance.baseUrl, group.dashboardPath, GLib.UriFlags.NONE);
 }

@@ -3,7 +3,7 @@ import GLib from 'gi://GLib';
 import {
     type ConfigurationV1,
     type InstanceConfiguration,
-    invariant,
+    assertValidConfiguration,
     isHttpBaseUrl,
     parseConfigurationValue,
 } from '../shared/configuration.js';
@@ -17,8 +17,8 @@ export function upsertInstance(configuration: ConfigurationV1, instance: Instanc
 }
 
 export function removeInstance(configuration: ConfigurationV1, instanceId: string): ConfigurationV1 {
-    invariant(configuration.instances.some(instance => instance.id === instanceId), `instance id ${instanceId} must exist`);
-    invariant(!configuration.groups.some(group => group.instanceId === instanceId), `instance id ${instanceId} must not be referenced by a group`);
+    assertValidConfiguration(configuration.instances.some(instance => instance.id === instanceId), `instance id ${instanceId} must exist`);
+    assertValidConfiguration(!configuration.groups.some(group => group.instanceId === instanceId), `instance id ${instanceId} must not be referenced by a group`);
     return parseConfigurationValue({
         ...configuration,
         instances: configuration.instances.filter(instance => instance.id !== instanceId),
@@ -26,7 +26,7 @@ export function removeInstance(configuration: ConfigurationV1, instanceId: strin
 }
 
 export function buildWebSocketUrl(instance: InstanceConfiguration): string {
-    invariant(isHttpBaseUrl(instance.baseUrl), 'instance baseUrl must be an HTTP(S) base URL without a query or fragment');
+    assertValidConfiguration(isHttpBaseUrl(instance.baseUrl), 'instance baseUrl must be an HTTP(S) base URL without a query or fragment');
     const httpUrl = GLib.Uri.resolve_relative(instance.baseUrl, '/api/websocket', GLib.UriFlags.NONE);
     return httpUrl.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:');
 }
