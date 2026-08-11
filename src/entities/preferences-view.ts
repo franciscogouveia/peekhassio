@@ -5,7 +5,7 @@ import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensio
 import { iconButton } from '../preferences/widgets.js';
 import type { ConfigurationV1, EntityConfiguration } from '../shared/configuration.js';
 import { moveEntity, removeEntity, upsertEntity } from './configuration.js';
-import { buildEntityRows } from './view.js';
+import { buildEntityRowViewModels } from './view-model.js';
 
 export interface EntityPreferencesContext {
     getConfiguration: () => ConfigurationV1;
@@ -37,14 +37,14 @@ export function manageEntities(context: EntityPreferencesContext, groupId: strin
         addButton.connect('clicked', () => context.runAction(() => editEntity(context, dialog, groupId, render)));
         rows.header_suffix = addButton;
 
-        const view = buildEntityRows(configuration, groupId);
-        if (view.length === 0) {
+        const rowViewModels = buildEntityRowViewModels(configuration, groupId);
+        if (rowViewModels.length === 0) {
             rows.add(new Adw.ActionRow({
                 title: _('No entities configured'),
                 subtitle: _('Add a Home Assistant entity to this group.'),
             }));
         }
-        view.forEach((item) => {
+        rowViewModels.forEach((item) => {
             const entity = group.entities.find(candidate => candidate.entityId === item.id)!;
             const row = new Adw.ActionRow({ title: item.title, subtitle: _(item.subtitle) });
             const upButton = iconButton('go-up-symbolic', _('Move entity up'));

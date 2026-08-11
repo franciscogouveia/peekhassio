@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { buildEntityRows } from '../../dist/entities/view.js';
+import { buildEntityRowViewModels } from '../../dist/entities/view-model.js';
 
 const configuration = {
     version: 1,
@@ -19,7 +19,7 @@ const configuration = {
 };
 
 test('derives ordered entity rows and move controls', () => {
-    assert.deepEqual(buildEntityRows(configuration, 'living-room'), [
+    assert.deepEqual(buildEntityRowViewModels(configuration, 'living-room'), [
         {
             id: 'sensor.temperature',
             title: 'sensor.temperature',
@@ -35,12 +35,12 @@ test('derives ordered entity rows and move controls', () => {
             canMoveDown: false,
         },
     ]);
-    assert.deepEqual(buildEntityRows({
+    assert.deepEqual(buildEntityRowViewModels({
         ...configuration,
         groups: [{ ...configuration.groups[0], entities: [] }],
     }, 'living-room'), []);
 });
 
 test('rejects an unknown entity group', () => {
-    assert.throws(() => buildEntityRows(configuration, 'missing'), /group id missing must exist/);
+    assert.throws(() => buildEntityRowViewModels(configuration, 'missing'), /group id missing must exist/);
 });

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { buildGroupView } from '../../dist/groups/view.js';
+import { buildGroupViewModel } from '../../dist/groups/view-model.js';
 
 const instances = [
     { id: 'home', name: 'Home', baseUrl: 'https://ha.example.com' },
@@ -13,7 +13,7 @@ const groups = [
 ];
 
 test('derives ordered group rows and move controls', () => {
-    assert.deepEqual(buildGroupView({ version: 1, instances, groups }), {
+    assert.deepEqual(buildGroupViewModel({ version: 1, instances, groups }), {
         canAddGroup: true,
         rows: [
             {
@@ -35,11 +35,11 @@ test('derives ordered group rows and move controls', () => {
 });
 
 test('disables group creation and movement for empty configuration', () => {
-    assert.deepEqual(buildGroupView({ version: 1, instances: [], groups: [] }), {
+    assert.deepEqual(buildGroupViewModel({ version: 1, instances: [], groups: [] }), {
         canAddGroup: false,
         rows: [],
     });
-    assert.deepEqual(buildGroupView({ version: 1, instances, groups: [groups[0]] }).rows[0], {
+    assert.deepEqual(buildGroupViewModel({ version: 1, instances, groups: [groups[0]] }).rows[0], {
         id: 'living-room',
         title: 'Living room',
         subtitle: 'Home · /living-room',

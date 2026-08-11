@@ -99,6 +99,22 @@ Assistant data in transit.
 
 ## Development and testing
 
+Source modules are organized by feature and named for their architectural
+role:
+
+- `configuration.ts` defines domain validation and immutable model changes.
+- `view-model.ts` derives presentation-only state without creating widgets.
+- `preferences-view.ts` creates GTK/Adwaita widgets and binds their native
+  signals to feature actions.
+- `prefs.ts` is the preferences entry point and coordinator for storage,
+  navigation, recovery, and shared error handling.
+- `extension.ts` and `runtime/` coordinate the Shell process; Shell widgets
+  remain under `groups/` and never import preferences-process libraries.
+
+This is a feature-oriented separation of model, view model, view, and
+coordination responsibilities, not a claim that every feature implements a
+formal MVC framework.
+
 The primary local workflows are:
 
 ```sh

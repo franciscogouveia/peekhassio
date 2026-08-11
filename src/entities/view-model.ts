@@ -1,6 +1,6 @@
 import type { ConfigurationV1 } from '../shared/configuration.js';
 
-export interface EntityRowView {
+export interface EntityRowViewModel {
     id: string;
     title: string;
     subtitle: string;
@@ -8,7 +8,7 @@ export interface EntityRowView {
     canMoveDown: boolean;
 }
 
-export function buildEntityRows(configuration: ConfigurationV1, groupId: string): EntityRowView[] {
+export function buildEntityRowViewModels(configuration: ConfigurationV1, groupId: string): EntityRowViewModel[] {
     const group = configuration.groups.find(candidate => candidate.id === groupId);
     if (!group)
         throw new Error(`Invalid configuration: group id ${groupId} must exist`);

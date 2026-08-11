@@ -7,7 +7,7 @@ import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensio
 import { iconButton } from '../preferences/widgets.js';
 import type { ConfigurationV1, GroupConfiguration } from '../shared/configuration.js';
 import { moveGroup, removeGroup, upsertGroup } from './configuration.js';
-import { buildGroupView } from './view.js';
+import { buildGroupViewModel } from './view-model.js';
 
 export interface GroupPreferencesContext {
     configuration: ConfigurationV1;
@@ -22,7 +22,7 @@ function messageFrom(error: unknown): string {
 }
 
 export function buildGroupPreferencesPage(context: GroupPreferencesContext): Adw.PreferencesPage {
-    const view = buildGroupView(context.configuration);
+    const viewModel = buildGroupViewModel(context.configuration);
     const page = new Adw.PreferencesPage({
         title: _('Groups'),
         icon_name: 'view-list-symbolic',
@@ -32,11 +32,11 @@ export function buildGroupPreferencesPage(context: GroupPreferencesContext): Adw
         description: _('Groups appear in this order in the top bar.'),
     });
     const addButton = iconButton('list-add-symbolic', _('Add group'));
-    addButton.sensitive = view.canAddGroup;
+    addButton.sensitive = viewModel.canAddGroup;
     addButton.connect('clicked', () => context.runAction(() => editGroup(context)));
     group.header_suffix = addButton;
 
-    if (view.rows.length === 0) {
+    if (viewModel.rows.length === 0) {
         group.add(new Adw.ActionRow({
             title: _('No groups configured'),
             subtitle: context.configuration.instances.length === 0
@@ -45,7 +45,7 @@ export function buildGroupPreferencesPage(context: GroupPreferencesContext): Adw
         }));
     }
 
-    view.rows.forEach((item) => {
+    viewModel.rows.forEach((item) => {
         const displayGroup = context.configuration.groups.find(candidate => candidate.id === item.id)!;
         const row = new Adw.ActionRow({ title: item.title, subtitle: item.subtitle });
         const upButton = iconButton('go-up-symbolic', _('Move group up'));

@@ -5,15 +5,15 @@ import Gtk from 'gi://Gtk';
 import { ExtensionPreferences, gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 import { CredentialStore } from './instances/credential-store.js';
-import { manageEntities } from './entities/preferences.js';
-import { buildGroupPreferencesPage } from './groups/preferences.js';
+import { manageEntities } from './entities/preferences-view.js';
+import { buildGroupPreferencesPage } from './groups/preferences-view.js';
 import {
     ConfigurationStore,
     type ConfigurationV1,
     createDefaultConfiguration,
 } from './shared/configuration.js';
 import { SecretServiceBackend } from './instances/secret-service.js';
-import { buildInstancePreferencesPage } from './instances/preferences.js';
+import { buildInstancePreferencesPage } from './instances/preferences-view.js';
 import { runSafely } from './shared/action-runner.js';
 
 function messageFrom(error: unknown): string {

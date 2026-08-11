@@ -12,7 +12,7 @@ import {
 } from '../shared/configuration.js';
 import { removeInstance, upsertInstance } from './configuration.js';
 import type { CredentialStore } from './credential-store.js';
-import { buildInstanceRows } from './view.js';
+import { buildInstanceRowViewModels } from './view-model.js';
 
 export interface InstancePreferencesContext {
     configuration: ConfigurationV1;
@@ -31,7 +31,7 @@ function messageFrom(error: unknown): string {
 }
 
 export function buildInstancePreferencesPage(context: InstancePreferencesContext): Adw.PreferencesPage {
-    const rows = buildInstanceRows(context.configuration);
+    const rowViewModels = buildInstanceRowViewModels(context.configuration);
     const page = new Adw.PreferencesPage({
         title: _('Instances'),
         icon_name: 'network-server-symbolic',
@@ -44,14 +44,14 @@ export function buildInstancePreferencesPage(context: InstancePreferencesContext
     addButton.connect('clicked', () => context.runAction(() => editInstance(context)));
     group.header_suffix = addButton;
 
-    if (rows.length === 0) {
+    if (rowViewModels.length === 0) {
         group.add(new Adw.ActionRow({
             title: _('No instances configured'),
             subtitle: _('Add a Home Assistant instance to get started.'),
         }));
     }
 
-    rows.forEach((item) => {
+    rowViewModels.forEach((item) => {
         const instance = context.configuration.instances.find(candidate => candidate.id === item.id)!;
         const row = new Adw.ActionRow({
             title: item.title,

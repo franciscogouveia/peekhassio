@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { buildInstanceRows } from '../../dist/instances/view.js';
+import { buildInstanceRowViewModels } from '../../dist/instances/view-model.js';
 
 test('derives instance rows in configuration order', () => {
-    assert.deepEqual(buildInstanceRows({
+    assert.deepEqual(buildInstanceRowViewModels({
         version: 1,
         instances: [
             { id: 'home', name: 'Home', baseUrl: 'https://ha.example.com' },
@@ -18,5 +18,5 @@ test('derives instance rows in configuration order', () => {
 });
 
 test('derives no instance rows from empty configuration', () => {
-    assert.deepEqual(buildInstanceRows({ version: 1, instances: [], groups: [] }), []);
+    assert.deepEqual(buildInstanceRowViewModels({ version: 1, instances: [], groups: [] }), []);
 });
