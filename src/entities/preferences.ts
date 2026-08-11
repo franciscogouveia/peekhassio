@@ -1,8 +1,8 @@
 import Adw from 'gi://Adw';
-import Gtk from 'gi://Gtk';
 
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
+import { iconButton } from '../preferences/widgets.js';
 import type { ConfigurationV1, EntityConfiguration } from '../shared/configuration.js';
 import { moveEntity, removeEntity, upsertEntity } from './configuration.js';
 import { buildEntityRows } from './view.js';
@@ -16,16 +16,6 @@ export interface EntityPreferencesContext {
 
 function messageFrom(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
-}
-
-function iconButton(iconName: string, tooltipText: string): Gtk.Button {
-    const button = new Gtk.Button({
-        icon_name: iconName,
-        tooltip_text: tooltipText,
-        valign: Gtk.Align.CENTER,
-    });
-    button.add_css_class('flat');
-    return button;
 }
 
 export function manageEntities(context: EntityPreferencesContext, groupId: string): void {

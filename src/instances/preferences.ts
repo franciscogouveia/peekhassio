@@ -1,10 +1,10 @@
 import Adw from 'gi://Adw';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import Gtk from 'gi://Gtk';
 
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
+import { iconButton } from '../preferences/widgets.js';
 import {
     type ConfigurationV1,
     type InstanceConfiguration,
@@ -28,16 +28,6 @@ export interface InstancePreferencesContext {
 
 function messageFrom(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
-}
-
-function iconButton(iconName: string, tooltipText: string): Gtk.Button {
-    const button = new Gtk.Button({
-        icon_name: iconName,
-        tooltip_text: tooltipText,
-        valign: Gtk.Align.CENTER,
-    });
-    button.add_css_class('flat');
-    return button;
 }
 
 export function buildInstancePreferencesPage(context: InstancePreferencesContext): Adw.PreferencesPage {
