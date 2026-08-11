@@ -1,44 +1,15 @@
 # Backlog
 
-Peekhassio is feature-complete for its first release. Work before release is
-limited to validation, security review, packaging, and release documentation.
-New product ideas belong in a post-release milestone.
+Peekhassio is feature-complete. New product ideas belong in a post-release
+milestone.
 
-Version 1.0.0 and its release notes are prepared. The accepted feature build and
-manual GNOME Shell 50 results are recorded in
-[RELEASE_NOTES.md](RELEASE_NOTES.md). The GNOME Shell 50 acceptance pass is
-complete.
+Version 1.0.1 and its release notes are prepared. The accepted build and manual
+GNOME Shell 50 results are recorded in [RELEASE_NOTES.md](RELEASE_NOTES.md).
 
-## Validate the distributable artifact
-
-- Start from `npm ci` and a clean generated-artifact state.
-- Run `npm test`, `npm run check`, and `npm run package`.
-- Recursively verify that every relative runtime import exists in the archive.
-- Confirm that generated JavaScript remains readable, unbundled ESM suitable
-  for GJS and extensions.gnome.org review.
-- Install the resulting archive on GNOME Shell 50 and open its preferences
-  independently from the Shell process.
-- Verify install, upgrade, disable, re-enable, and uninstall workflows.
-
-## Complete security and stored-data review
-
-- Confirm that tokens appear only in GNOME Secret Service and never in
-  GSettings, configuration JSON, logs, archives, fixtures, or error messages.
-- Save, replace, and remove tokens with a live GNOME keyring.
-- Verify missing, locked, and unavailable Secret Service behavior.
-- Confirm that every network and protocol error remains redacted.
-- Review HTTPS defaults and the explicit warning for local HTTP connections.
-- Document what uninstalling removes and what remains in GSettings or Secret
-  Service.
-- Review extension permissions, dependencies, runtime imports, and GNOME Shell
-  extension-review requirements.
-
-## Prepare the first release
-
-- Review the prepared 1.0.0 release notes against the final accepted archive.
-- Update the README only if final acceptance testing changes supported behavior
-  or installation guidance.
-- Create the final archive from a clean checkout and record its checksum.
+Release validation, packaging, GNOME review, and stored-data security checks are
+complete. The distributable was installed and exercised on GNOME Shell 50,
+including preferences, live values, configuration changes, credential states,
+and repeated enable/disable behavior.
 
 ## Post-release engineering
 

@@ -1,7 +1,19 @@
-# Peekhassio 1.0.0
+# Peekhassio 1.0.1
 
-Peekhassio 1.0.0 is the first feature-complete release of the GNOME Shell
+Peekhassio 1.0.1 is a maintenance release of the feature-complete GNOME Shell
 extension for viewing selected Home Assistant entity states in the top bar.
+
+## Changes since 1.0.0
+
+- Correctly preserve nested runtime module paths in the packaged extension.
+- Accept packages where GNOME tooling compiles the settings schema at install
+  time rather than embedding a generated schema cache.
+- Tighten extension lifecycle cleanup for GNOME review and repeated
+  enable/disable safety.
+- Reorganize source modules by feature and presentation responsibility without
+  changing configuration or runtime behavior.
+- Update GitHub release automation for Node.js 24-based actions.
+- Add project screenshots and a GitHub social preview.
 
 ## Features
 
@@ -39,8 +51,8 @@ extension for viewing selected Home Assistant entity states in the top bar.
 
 ## Upgrade and rollback
 
-Upgrading or reinstalling 1.0.0 preserves configuration and tokens. No
-configuration migration is required.
+Upgrading from 1.0.0 or reinstalling 1.0.1 preserves configuration and tokens.
+No configuration migration is required.
 
 To roll back, install a previously validated archive with the same
 configuration schema version. Disable the extension first if a runtime problem
@@ -57,8 +69,8 @@ archive and should not need to be entered again.
 
 ## Acceptance evidence
 
-The feature-complete build at commit
-`13f651f83aa3d54a8eb4baac47dfd393af2162eb` was accepted on GNOME Shell 50.
+The release-candidate build at commit
+`d20b460` was accepted on GNOME Shell 50.
 The acceptance pass confirmed:
 
 - all automated checks and tests;
