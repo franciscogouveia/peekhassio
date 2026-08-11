@@ -4,9 +4,9 @@ import Gtk from 'gi://Gtk';
 
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
-import { buildPreferencesView } from '../preferences/view.js';
 import type { ConfigurationV1, GroupConfiguration } from '../shared/configuration.js';
 import { moveGroup, removeGroup, upsertGroup } from './configuration.js';
+import { buildGroupView } from './view.js';
 
 export interface GroupPreferencesContext {
     configuration: ConfigurationV1;
@@ -31,7 +31,7 @@ function iconButton(iconName: string, tooltipText: string): Gtk.Button {
 }
 
 export function buildGroupPreferencesPage(context: GroupPreferencesContext): Adw.PreferencesPage {
-    const view = buildPreferencesView(context.configuration);
+    const view = buildGroupView(context.configuration);
     const page = new Adw.PreferencesPage({
         title: _('Groups'),
         icon_name: 'view-list-symbolic',
@@ -45,7 +45,7 @@ export function buildGroupPreferencesPage(context: GroupPreferencesContext): Adw
     addButton.connect('clicked', () => context.runAction(() => editGroup(context)));
     group.header_suffix = addButton;
 
-    if (view.groupRows.length === 0) {
+    if (view.rows.length === 0) {
         group.add(new Adw.ActionRow({
             title: _('No groups configured'),
             subtitle: context.configuration.instances.length === 0
@@ -54,7 +54,7 @@ export function buildGroupPreferencesPage(context: GroupPreferencesContext): Adw
         }));
     }
 
-    view.groupRows.forEach((item) => {
+    view.rows.forEach((item) => {
         const displayGroup = context.configuration.groups.find(candidate => candidate.id === item.id)!;
         const row = new Adw.ActionRow({ title: item.title, subtitle: item.subtitle });
         const upButton = iconButton('go-up-symbolic', _('Move group up'));

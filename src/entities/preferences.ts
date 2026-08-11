@@ -3,9 +3,9 @@ import Gtk from 'gi://Gtk';
 
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
-import { buildEntityRows } from '../preferences/view.js';
 import type { ConfigurationV1, EntityConfiguration } from '../shared/configuration.js';
 import { moveEntity, removeEntity, upsertEntity } from './configuration.js';
+import { buildEntityRows } from './view.js';
 
 export interface EntityPreferencesContext {
     getConfiguration: () => ConfigurationV1;

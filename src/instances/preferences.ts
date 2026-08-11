@@ -5,7 +5,6 @@ import Gtk from 'gi://Gtk';
 
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
-import { buildPreferencesView } from '../preferences/view.js';
 import {
     type ConfigurationV1,
     type InstanceConfiguration,
@@ -13,6 +12,7 @@ import {
 } from '../shared/configuration.js';
 import { upsertInstance } from './configuration.js';
 import type { CredentialStore } from './credential-store.js';
+import { buildInstanceRows } from './view.js';
 
 export interface InstancePreferencesContext {
     configuration: ConfigurationV1;
@@ -43,7 +43,7 @@ function iconButton(iconName: string, tooltipText: string): Gtk.Button {
 }
 
 export function buildInstancePreferencesPage(context: InstancePreferencesContext): Adw.PreferencesPage {
-    const view = buildPreferencesView(context.configuration);
+    const rows = buildInstanceRows(context.configuration);
     const page = new Adw.PreferencesPage({
         title: _('Instances'),
         icon_name: 'network-server-symbolic',
@@ -56,14 +56,14 @@ export function buildInstancePreferencesPage(context: InstancePreferencesContext
     addButton.connect('clicked', () => context.runAction(() => editInstance(context)));
     group.header_suffix = addButton;
 
-    if (view.instanceRows.length === 0) {
+    if (rows.length === 0) {
         group.add(new Adw.ActionRow({
             title: _('No instances configured'),
             subtitle: _('Add a Home Assistant instance to get started.'),
         }));
     }
 
-    view.instanceRows.forEach((item) => {
+    rows.forEach((item) => {
         const instance = context.configuration.instances.find(candidate => candidate.id === item.id)!;
         const row = new Adw.ActionRow({
             title: item.title,
