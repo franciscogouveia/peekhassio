@@ -1,41 +1,23 @@
-import { runSafely } from '../shared/action-runner.js';
 import type { EntityState } from '../entities/state-client.js';
 import type { RuntimeGroupState } from '../runtime/coordinator.js';
 
-export interface PanelGroupView {
+export interface PanelGroupViewModel {
     dashboardUrl: string;
     id: string;
     name: string;
     values: string[];
-    warning: PanelWarningView | null;
-    entities: PanelEntityView[];
+    warning: PanelWarningViewModel | null;
+    entities: PanelEntityViewModel[];
     accessibleName: string;
     degraded: boolean;
 }
 
-export function runPanelAction(
-    action: () => void,
-    closeMenu: () => void,
-    failureMessage: string,
-    showError: (message: string) => void,
-    reportReportingError: () => void,
-): void {
-    runSafely(
-        () => {
-            action();
-            closeMenu();
-        },
-        () => showError(failureMessage),
-        reportReportingError,
-    );
-}
-
-export interface PanelWarningView {
+export interface PanelWarningViewModel {
     title: string;
     description?: string;
 }
 
-export interface PanelEntityView {
+export interface PanelEntityViewModel {
     id: string;
     value: string;
     lastUpdate: string;
@@ -50,7 +32,7 @@ function displayStatus(status: RuntimeGroupState['status']): string | null {
     }
 }
 
-function displayWarning(group: RuntimeGroupState): PanelWarningView | null {
+function displayWarning(group: RuntimeGroupState): PanelWarningViewModel | null {
     switch (group.status) {
         case 'connecting':
             return {
@@ -77,15 +59,6 @@ function displayWarning(group: RuntimeGroupState): PanelWarningView | null {
     }
 }
 
-export interface PanelGroupWidget {
-    update(view: PanelGroupView): void;
-    destroy(): void;
-}
-
-export interface PanelWidgetFactory {
-    create(view: PanelGroupView, position: number): PanelGroupWidget;
-}
-
 function displayValue(state: EntityState): string {
     switch (state.availability) {
         case 'available':
@@ -104,10 +77,10 @@ function accessibleValue(state: EntityState): string {
     return `${state.entityId}: ${value}`;
 }
 
-export function buildPanelGroupViews(
+export function buildPanelGroupViewModels(
     groups: RuntimeGroupState[],
     formatTime = (receivedAt: number): string => new Date(receivedAt).toLocaleString(),
-): PanelGroupView[] {
+): PanelGroupViewModel[] {
     return groups.map((group) => {
         const status = displayStatus(group.status);
         const values = group.entities.length === 0
@@ -129,32 +102,4 @@ export function buildPanelGroupViews(
                 || group.entities.some(entity => entity.availability !== 'available'),
         };
     });
-}
-
-export class PanelViewController {
-    readonly #factory: PanelWidgetFactory;
-    #ids: string[] = [];
-    #widgets: PanelGroupWidget[] = [];
-
-    constructor(factory: PanelWidgetFactory) {
-        this.#factory = factory;
-    }
-
-    render(groups: RuntimeGroupState[]): void {
-        const views = buildPanelGroupViews(groups);
-        const ids = views.map(view => view.id);
-        if (ids.length !== this.#ids.length || ids.some((id, index) => id !== this.#ids[index])) {
-            this.destroy();
-            this.#ids = ids;
-            this.#widgets = views.map((view, index) => this.#factory.create(view, index));
-            return;
-        }
-        views.forEach((view, index) => this.#widgets[index]!.update(view));
-    }
-
-    destroy(): void {
-        this.#widgets.forEach(widget => widget.destroy());
-        this.#widgets = [];
-        this.#ids = [];
-    }
 }

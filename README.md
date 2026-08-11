@@ -108,7 +108,12 @@ role:
   signals to feature actions.
 - `prefs.ts` is the preferences entry point and coordinator for storage,
   navigation, recovery, and shared error handling.
-- `extension.ts` and `runtime/` coordinate the Shell process; Shell widgets
+- `panel-view-model.ts` derives the top-bar and menu presentation state.
+- `panel-shell-view.ts` creates the Shell widgets and binds their native
+  signals.
+- `panel-controller.ts` owns panel reconciliation, actions, and widget
+  lifecycle.
+- `extension.ts` and `runtime/` coordinate the Shell process; panel modules
   remain under `groups/` and never import preferences-process libraries.
 
 This is a feature-oriented separation of model, view model, view, and

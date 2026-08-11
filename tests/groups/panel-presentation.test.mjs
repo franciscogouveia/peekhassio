@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { buildPanelGroupViews, PanelViewController, runPanelAction } from '../../dist/groups/panel-view.js';
+import { PanelController, runPanelAction } from '../../dist/groups/panel-controller.js';
+import { buildPanelGroupViewModels } from '../../dist/groups/panel-view-model.js';
 
 const groups = [
     {
@@ -27,8 +28,8 @@ const groups = [
     { id: 'empty', dashboardUrl: 'https://home.example', name: 'Empty', entities: [], status: 'ready' },
 ];
 
-test('builds compact labels, menu details, accessible descriptions, and degraded state', () => {
-    assert.deepEqual(buildPanelGroupViews(groups, timestamp => `time ${timestamp}`), [
+test('builds compact panel labels, menu details, accessible descriptions, and degraded state', () => {
+    assert.deepEqual(buildPanelGroupViewModels(groups, timestamp => `time ${timestamp}`), [
         {
             dashboardUrl: 'https://home.example/living-room',
             id: 'living-room',
@@ -81,7 +82,7 @@ test('keeps values compact and accessible status details off the panel', () => {
         name: 'Living room',
         entities: [{ entityId: 'sensor.temperature', value: '21', availability: 'available', unit: '°C' }],
     };
-    const views = buildPanelGroupViews([
+    const views = buildPanelGroupViewModels([
         { ...base, id: 'connecting', status: 'connecting' },
         { ...base, id: 'stale', status: 'stale' },
         { ...base, id: 'authentication', status: 'authentication-failed' },
@@ -156,7 +157,7 @@ test('updates stable widgets and rebuilds only for identity or order changes', (
             return widget;
         },
     };
-    const controller = new PanelViewController(factory);
+    const controller = new PanelController(factory);
 
     controller.render(groups);
     const firstWidgets = [...created];
