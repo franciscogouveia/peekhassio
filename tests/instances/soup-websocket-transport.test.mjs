@@ -3,7 +3,7 @@
 import System from 'system';
 import Soup from 'gi://Soup?version=3.0';
 
-import { SoupConnection } from '../../dist/instances/soup-websocket-transport.js';
+import { GioCancellation, SoupConnection } from '../../dist/instances/soup-websocket-transport.js';
 
 const JsUnit = imports.jsUnit;
 
@@ -47,6 +47,34 @@ class FakeWebSocketConnection {
 }
 
 const tests = {
+    testDisconnectsCancellationHandlerReentrantlyWithoutDeadlock() {
+        const cancellation = new GioCancellation();
+        let calls = 0;
+        let disconnect = () => {};
+        disconnect = cancellation.onCancel(() => {
+            calls++;
+            disconnect();
+        });
+
+        cancellation.cancel();
+        cancellation.cancel();
+
+        JsUnit.assertEquals(1, calls);
+        JsUnit.assertTrue(cancellation.isCancelled());
+    },
+
+    testDisconnectsCancellationHandlerBeforeCancellation() {
+        const cancellation = new GioCancellation();
+        let calls = 0;
+        const disconnect = cancellation.onCancel(() => calls++);
+
+        disconnect();
+        disconnect();
+        cancellation.cancel();
+
+        JsUnit.assertEquals(0, calls);
+    },
+
     testRetainsLifecycleSignalsUntilAsynchronousCloseCompletes() {
         const nativeConnection = new FakeWebSocketConnection();
         let releases = 0;
