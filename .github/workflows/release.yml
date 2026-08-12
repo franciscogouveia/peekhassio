@@ -36,7 +36,7 @@ jobs:
       - name: Install GNOME tooling
         run: |
           sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends gjs gnome-shell unzip
+          sudo apt-get install --yes --no-install-recommends gjs gir1.2-soup-3.0 gnome-shell unzip
 
       - name: Install dependencies
         run: npm ci
