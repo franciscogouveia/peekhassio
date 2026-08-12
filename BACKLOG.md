@@ -3,7 +3,7 @@
 Peekhassio is feature-complete. New product ideas belong in a post-release
 milestone.
 
-Version 1.0.1 and its release notes are prepared. The accepted build and manual
+Version 1.0.2 and its release notes are prepared. The accepted build and manual
 GNOME Shell 50 results are recorded in [RELEASE_NOTES.md](RELEASE_NOTES.md).
 
 Release validation, packaging, GNOME review, and stored-data security checks are
