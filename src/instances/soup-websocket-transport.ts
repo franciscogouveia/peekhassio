@@ -16,7 +16,6 @@ const MAX_INCOMING_PAYLOAD_BYTES = 8 * 1024 * 1024;
 
 export class SoupConnection implements WebSocketConnection {
     readonly #connection: Soup.WebsocketConnection;
-    readonly #release: () => void;
     readonly #transportSignals = new SignalOwner();
     #closed = false;
     #closing = false;
@@ -24,7 +23,6 @@ export class SoupConnection implements WebSocketConnection {
 
     constructor(connection: Soup.WebsocketConnection, release: () => void) {
         this.#connection = connection;
-        this.#release = release;
         connection.set_max_incoming_payload_size(MAX_INCOMING_PAYLOAD_BYTES);
         this.#transportSignals.add(connection.connect('error', () => {
             this.#transportError = true;
@@ -32,7 +30,7 @@ export class SoupConnection implements WebSocketConnection {
         this.#transportSignals.add(connection.connect('closed', () => {
             this.#closed = true;
             this.#disconnectTransportSignals();
-            this.#release();
+            release();
         }));
     }
 
