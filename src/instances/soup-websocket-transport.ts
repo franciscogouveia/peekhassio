@@ -1,5 +1,6 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import GObject from 'gi://GObject';
 import Soup from 'gi://Soup?version=3.0';
 
 import type {
@@ -117,8 +118,17 @@ export class GioCancellation implements Cancellation {
     }
 
     onCancel(callback: () => void): () => void {
-        const signal = this.cancellable.connect(callback);
-        return () => this.cancellable.disconnect(signal);
+        // This cancellation is owned and invoked on the Shell main thread, so
+        // generic GObject signals avoid g_cancellable_disconnect(), which
+        // deadlocks when cleanup runs from inside the cancellation callback.
+        const signal = GObject.signal_connect(this.cancellable, 'cancelled', callback);
+        let connected = true;
+        return () => {
+            if (!connected)
+                return;
+            connected = false;
+            GObject.signal_handler_disconnect(this.cancellable, signal);
+        };
     }
 
     cancel(): void {
