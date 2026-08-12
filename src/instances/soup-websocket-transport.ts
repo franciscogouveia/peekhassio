@@ -14,15 +14,17 @@ Gio._promisify(Soup.Session.prototype, 'websocket_connect_async', 'websocket_con
 
 const MAX_INCOMING_PAYLOAD_BYTES = 8 * 1024 * 1024;
 
-class SoupConnection implements WebSocketConnection {
+export class SoupConnection implements WebSocketConnection {
     readonly #connection: Soup.WebsocketConnection;
+    readonly #release: () => void;
     readonly #transportSignals = new SignalOwner();
     #closed = false;
     #closing = false;
     #transportError = false;
 
-    constructor(connection: Soup.WebsocketConnection) {
+    constructor(connection: Soup.WebsocketConnection, release: () => void) {
         this.#connection = connection;
+        this.#release = release;
         connection.set_max_incoming_payload_size(MAX_INCOMING_PAYLOAD_BYTES);
         this.#transportSignals.add(connection.connect('error', () => {
             this.#transportError = true;
@@ -30,6 +32,7 @@ class SoupConnection implements WebSocketConnection {
         this.#transportSignals.add(connection.connect('closed', () => {
             this.#closed = true;
             this.#disconnectTransportSignals();
+            this.#release();
         }));
     }
 
@@ -41,12 +44,9 @@ class SoupConnection implements WebSocketConnection {
         if (this.#closing || this.#closed)
             return;
         this.#closing = true;
-        try {
-            this.#connection.close(Soup.WebsocketCloseCode.NORMAL, null);
-        }
-        finally {
-            this.#disconnectTransportSignals();
-        }
+        // libsoup completes an orderly close asynchronously. Keep the internal
+        // lifecycle signals and this wrapper alive until `closed` is emitted.
+        this.#connection.close(Soup.WebsocketCloseCode.NORMAL, null);
     }
 
     onMessage(callback: (message: string | null) => void): () => void {
@@ -82,6 +82,7 @@ class SoupConnection implements WebSocketConnection {
 }
 
 export class SoupWebSocketTransport implements WebSocketTransport {
+    readonly #connections = new Set<SoupConnection>();
     readonly #session = new Soup.Session({ timeout: 30 });
 
     async connect(url: string, cancellation: Cancellation): Promise<WebSocketConnection> {
@@ -98,7 +99,11 @@ export class SoupWebSocketTransport implements WebSocketTransport {
                 GLib.PRIORITY_DEFAULT,
                 cancellable,
             );
-            return new SoupConnection(connection);
+            const ownedConnection = new SoupConnection(connection, () => {
+                this.#connections.delete(ownedConnection);
+            });
+            this.#connections.add(ownedConnection);
+            return ownedConnection;
         }
         finally {
             disconnectCancellation();
