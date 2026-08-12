@@ -1,6 +1,6 @@
 {
     "name": "peekhassio",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "description": "Peek at Home Assistant entity states from the GNOME top bar.",
     "type": "module",
     "private": true,
