@@ -23,6 +23,7 @@ test('preferences source is independent of the deprecated window host', async ()
     assert.match(preferences, /getPreferencesWidget\(\): Gtk\.Widget/);
     assert.match(preferences, /new Adw\.ViewSwitcher/);
     assert.match(preferences, /new Adw\.ViewStack/);
-    assert.match(preferences, /add_titled_with_icon\(instancePage, 'instances'/);
-    assert.match(preferences, /add_titled_with_icon\(groupPage, 'groups'/);
+    assert.match(preferences, /'instances',\s+_\('Instances'\)/);
+    assert.match(preferences, /'groups',\s+_\('Groups'\)/);
+    assert.doesNotMatch(preferences, /new Adw\.PreferencesPage/);
 });

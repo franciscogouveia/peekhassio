@@ -24,9 +24,9 @@ interface PreferencesContext {
     configuration: ConfigurationV1;
     credentials: CredentialStore;
     groups: Adw.PreferencesGroup[];
-    groupPage: Adw.PreferencesPage;
+    groupPage: Gtk.Box;
     groupTab: Adw.ViewStackPage;
-    instancePage: Adw.PreferencesPage;
+    instancePage: Gtk.Box;
     parent: Gtk.Widget;
     settings: Gio.Settings;
     store: ConfigurationStore;
@@ -39,14 +39,23 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
         const settings = this.getSettings();
         const store = new ConfigurationStore(settings);
         const stack = new Adw.ViewStack({ vexpand: true });
-        const instancePage = new Adw.PreferencesPage();
-        const groupPage = new Adw.PreferencesPage();
-        stack.add_titled_with_icon(instancePage, 'instances', _('Instances'), 'network-server-symbolic');
-        const groupTab = stack.add_titled_with_icon(groupPage, 'groups', _('Groups'), 'view-list-symbolic');
+        const instancePage = this.#createTabPage();
+        const groupPage = this.#createTabPage();
+        stack.add_titled_with_icon(
+            new Gtk.ScrolledWindow({ child: instancePage, vexpand: true }),
+            'instances',
+            _('Instances'),
+            'network-server-symbolic',
+        );
+        const groupTab = stack.add_titled_with_icon(
+            new Gtk.ScrolledWindow({ child: groupPage, vexpand: true }),
+            'groups',
+            _('Groups'),
+            'view-list-symbolic',
+        );
         const switcher = new Adw.ViewSwitcher({
             halign: Gtk.Align.CENTER,
-            margin_bottom: 6,
-            margin_top: 6,
+            margin_bottom: 3,
             policy: Adw.ViewSwitcherPolicy.WIDE,
             stack,
         });
@@ -80,6 +89,16 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
         return preferences;
     }
 
+    #createTabPage(): Gtk.Box {
+        return new Gtk.Box({
+            margin_bottom: 12,
+            margin_end: 12,
+            margin_start: 12,
+            margin_top: 6,
+            orientation: Gtk.Orientation.VERTICAL,
+        });
+    }
+
     #activeContext(): PreferencesContext {
         if (this.#context === null)
             throw new Error('Preferences widget is closed.');
@@ -94,9 +113,9 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
             context.groupPage.remove(context.groups[1]);
         context.groups = groups;
         if (groups[0])
-            context.instancePage.add(groups[0]);
+            context.instancePage.append(groups[0]);
         if (groups[1])
-            context.groupPage.add(groups[1]);
+            context.groupPage.append(groups[1]);
         context.groupTab.visible = groups.length > 1;
     }
 
