@@ -8,4 +8,7 @@ test('preferences use the GNOME 45+ window entry point', async () => {
     assert.doesNotMatch(preferences, /getPreferencesWidget/);
     assert.match(preferences, /new Adw\.PreferencesPage\(\{\s+title: _\('Instances'\)/);
     assert.match(preferences, /new Adw\.PreferencesPage\(\{\s+title: _\('Groups'\)/);
+    assert.match(preferences, /const visiblePage = context\.window\.visible_page/);
+    assert.match(preferences, /context\.pages\.indexOf\(visiblePage\)/);
+    assert.match(preferences, /context\.window\.visible_page = pages\[visibleIndex\]/);
 });

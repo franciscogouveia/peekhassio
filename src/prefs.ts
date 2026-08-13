@@ -64,9 +64,15 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
 
     #replacePages(pages: Adw.PreferencesPage[]): void {
         const context = this.#activeContext();
+        const visiblePage = context.window.visible_page;
+        const visibleIndex = visiblePage instanceof Adw.PreferencesPage
+            ? context.pages.indexOf(visiblePage)
+            : -1;
         context.pages.forEach(page => context.window.remove(page));
         context.pages = pages;
         pages.forEach(page => context.window.add(page));
+        if (visibleIndex >= 0 && pages[visibleIndex])
+            context.window.visible_page = pages[visibleIndex];
     }
 
     #renderPreferences(): void {
