@@ -21,4 +21,8 @@ test('preferences source is independent of the deprecated window host', async ()
 
     const preferences = await readFile('src/prefs.ts', 'utf8');
     assert.match(preferences, /getPreferencesWidget\(\): Gtk\.Widget/);
+    assert.match(preferences, /new Adw\.ViewSwitcher/);
+    assert.match(preferences, /new Adw\.ViewStack/);
+    assert.match(preferences, /add_titled_with_icon\(instancePage, 'instances'/);
+    assert.match(preferences, /add_titled_with_icon\(groupPage, 'groups'/);
 });
