@@ -6,14 +6,14 @@ import { ExtensionPreferences, gettext as _ } from 'resource:///org/gnome/Shell/
 
 import { CredentialStore } from './instances/credential-store.js';
 import { manageEntities } from './entities/preferences-view.js';
-import { buildGroupPreferencesPage } from './groups/preferences-view.js';
+import { buildGroupPreferencesGroup } from './groups/preferences-view.js';
 import {
     ConfigurationStore,
     type ConfigurationV1,
     createDefaultConfiguration,
 } from './shared/configuration.js';
 import { SecretServiceBackend } from './instances/secret-service.js';
-import { buildInstancePreferencesPage } from './instances/preferences-view.js';
+import { buildInstancePreferencesGroup } from './instances/preferences-view.js';
 import { runSafely } from './shared/action-runner.js';
 
 function messageFrom(error: unknown): string {
@@ -23,29 +23,29 @@ function messageFrom(error: unknown): string {
 interface PreferencesContext {
     configuration: ConfigurationV1;
     credentials: CredentialStore;
-    pages: Adw.PreferencesPage[];
+    groups: Adw.PreferencesGroup[];
+    page: Adw.PreferencesPage;
     settings: Gio.Settings;
     store: ConfigurationStore;
-    window: Adw.PreferencesWindow;
 }
 
 export default class PeekhassioPreferences extends ExtensionPreferences {
     #context: PreferencesContext | null = null;
 
-    async fillPreferencesWindow(window: Adw.PreferencesWindow): Promise<void> {
+    getPreferencesWidget(): Gtk.Widget {
         const settings = this.getSettings();
         const store = new ConfigurationStore(settings);
+        const page = new Adw.PreferencesPage({ title: _('Peekhassio') });
         this.#context = {
             configuration: createDefaultConfiguration(),
             credentials: new CredentialStore(new SecretServiceBackend()),
-            pages: [],
+            groups: [],
+            page,
             settings,
             store,
-            window,
         };
-        window.connect('close-request', () => {
+        page.connect('destroy', () => {
             this.#context = null;
-            return false;
         });
         try {
             this.#context.configuration = store.load();
@@ -54,48 +54,47 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
         catch (error) {
             this.#renderRecovery(messageFrom(error));
         }
+        return page;
     }
 
     #activeContext(): PreferencesContext {
         if (this.#context === null)
-            throw new Error('Preferences window is closed.');
+            throw new Error('Preferences widget is closed.');
         return this.#context;
     }
 
-    #replacePages(pages: Adw.PreferencesPage[], visibleIndex = 0): void {
+    #replaceGroups(groups: Adw.PreferencesGroup[]): void {
         const context = this.#activeContext();
-        context.pages.forEach(page => context.window.remove(page));
-        context.pages = pages;
-        pages.forEach(page => context.window.add(page));
-        context.window.visible_page = pages[visibleIndex]!;
+        context.groups.forEach(group => context.page.remove(group));
+        context.groups = groups;
+        groups.forEach(group => context.page.add(group));
     }
 
-    #renderPreferences(showGroups = false): void {
+    #renderPreferences(): void {
         const context = this.#activeContext();
-        this.#replacePages(
-            [buildInstancePreferencesPage({
+        this.#replaceGroups(
+            [buildInstancePreferencesGroup({
                 configuration: context.configuration,
                 credentials: context.credentials,
+                parent: context.page,
                 settings: context.settings,
-                window: context.window,
                 persist: configuration => this.#persist(configuration),
                 persistOrThrow: configuration => this.#persistOrThrow(configuration),
                 refresh: () => this.#renderPreferences(),
                 runAction: action => this.#runAction(action),
                 runAsyncAction: action => this.#runAsyncAction(action),
-            }), buildGroupPreferencesPage({
+            }), buildGroupPreferencesGroup({
                 configuration: context.configuration,
-                window: context.window,
                 manageEntities: groupId => manageEntities({
                     getConfiguration: () => this.#activeContext().configuration,
+                    parent: context.page,
                     persist: (configuration, refresh) => this.#persistEntityChange(configuration, refresh),
                     runAction: action => this.#runAction(action),
-                    window: context.window,
                 }, groupId),
-                persist: configuration => this.#persist(configuration, true),
+                parent: context.page,
+                persist: configuration => this.#persist(configuration),
                 runAction: action => this.#runAction(action),
             })],
-            showGroups ? 1 : 0,
         );
     }
 
@@ -103,28 +102,27 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
         const context = this.#activeContext();
         context.store.save(configuration);
         context.configuration = configuration;
-        this.#renderPreferences(true);
+        this.#renderPreferences();
         refresh();
     }
 
-    #persist(configuration: ConfigurationV1, showGroups = false): void {
+    #persist(configuration: ConfigurationV1): void {
         try {
-            this.#persistOrThrow(configuration, showGroups);
+            this.#persistOrThrow(configuration);
         }
         catch (error) {
             this.#showMessage(_('Could not save preferences'), messageFrom(error));
         }
     }
 
-    #persistOrThrow(configuration: ConfigurationV1, showGroups = false): void {
+    #persistOrThrow(configuration: ConfigurationV1): void {
         const context = this.#activeContext();
         context.store.save(configuration);
         context.configuration = configuration;
-        this.#renderPreferences(showGroups);
+        this.#renderPreferences();
     }
 
     #renderRecovery(error: string): void {
-        const page = new Adw.PreferencesPage({ title: _('Configuration error') });
         const group = new Adw.PreferencesGroup();
         const row = new Adw.ActionRow({
             title: _('Stored configuration is invalid'),
@@ -135,8 +133,7 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
         resetButton.connect('clicked', () => this.#runAction(() => this.#resetConfiguration()));
         row.add_suffix(resetButton);
         group.add(row);
-        page.add(group);
-        this.#replacePages([page]);
+        this.#replaceGroups([group]);
     }
 
     #resetConfiguration(): void {
@@ -152,13 +149,13 @@ export default class PeekhassioPreferences extends ExtensionPreferences {
             if (response === 'reset')
                 this.#persist(createDefaultConfiguration());
         }));
-        dialog.present(this.#activeContext().window);
+        dialog.present(this.#activeContext().page);
     }
 
     #showMessage(heading: string, body: string): void {
         const dialog = new Adw.AlertDialog({ heading, body });
         dialog.add_response('close', _('Close'));
-        dialog.present(this.#activeContext().window);
+        dialog.present(this.#activeContext().page);
     }
 
     #runAction(action: () => void): void {

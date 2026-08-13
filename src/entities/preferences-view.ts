@@ -1,4 +1,5 @@
 import Adw from 'gi://Adw';
+import Gtk from 'gi://Gtk';
 
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
@@ -9,9 +10,9 @@ import { buildEntityRowViewModels } from './view-model.js';
 
 export interface EntityPreferencesContext {
     getConfiguration: () => ConfigurationV1;
+    parent: Gtk.Widget;
     persist: (configuration: ConfigurationV1, refresh: () => void) => void;
     runAction: (action: () => void) => void;
-    window: Adw.PreferencesWindow;
 }
 
 function messageFrom(error: unknown): string {
@@ -71,7 +72,7 @@ export function manageEntities(context: EntityPreferencesContext, groupId: strin
         dialog.add(page);
     };
     render();
-    dialog.present(context.window);
+    dialog.present(context.parent);
 }
 
 function editEntity(

@@ -1,6 +1,7 @@
 import Adw from 'gi://Adw';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import Gtk from 'gi://Gtk';
 
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
@@ -17,8 +18,8 @@ import { buildInstanceRowViewModels } from './view-model.js';
 export interface InstancePreferencesContext {
     configuration: ConfigurationV1;
     credentials: CredentialStore;
+    parent: Gtk.Widget;
     settings: Gio.Settings;
-    window: Adw.PreferencesWindow;
     persist: (configuration: ConfigurationV1) => void;
     persistOrThrow: (configuration: ConfigurationV1) => void;
     refresh: () => void;
@@ -30,12 +31,8 @@ function messageFrom(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
 }
 
-export function buildInstancePreferencesPage(context: InstancePreferencesContext): Adw.PreferencesPage {
+export function buildInstancePreferencesGroup(context: InstancePreferencesContext): Adw.PreferencesGroup {
     const rowViewModels = buildInstanceRowViewModels(context.configuration);
-    const page = new Adw.PreferencesPage({
-        title: _('Instances'),
-        icon_name: 'network-server-symbolic',
-    });
     const group = new Adw.PreferencesGroup({
         title: _('Home Assistant instances'),
         description: _('Instances provide the base address used by display groups.'),
@@ -71,15 +68,14 @@ export function buildInstancePreferencesPage(context: InstancePreferencesContext
         group.add(row);
     });
 
-    page.add(group);
-    return page;
+    return group;
 }
 
 function deleteInstance(context: InstancePreferencesContext, instance: InstanceConfiguration): void {
     const references = context.configuration.groups.filter(group => group.instanceId === instance.id).length;
     if (references > 0) {
         showMessage(
-            context.window,
+            context.parent,
             _('Instance cannot be deleted'),
             _('Remove or reassign its display groups first.'),
         );
@@ -100,7 +96,7 @@ function deleteInstance(context: InstancePreferencesContext, instance: InstanceC
             context.persist(removeInstance(context.configuration, instance.id));
         }
     }));
-    dialog.present(context.window);
+    dialog.present(context.parent);
 }
 
 function updateTokenStatus(
@@ -117,10 +113,10 @@ function updateTokenStatus(
     });
 }
 
-function showMessage(window: Adw.PreferencesWindow, heading: string, body: string): void {
+function showMessage(parent: Gtk.Widget, heading: string, body: string): void {
     const dialog = new Adw.AlertDialog({ heading, body });
     dialog.add_response('close', _('Close'));
-    dialog.present(window);
+    dialog.present(parent);
 }
 
 function editInstance(context: InstancePreferencesContext, existing?: InstanceConfiguration): void {
@@ -186,7 +182,7 @@ function editInstance(context: InstancePreferencesContext, existing?: InstanceCo
             }
         });
     });
-    dialog.present(context.window);
+    dialog.present(context.parent);
 }
 
 function editToken(context: InstancePreferencesContext, instance: InstanceConfiguration): void {
@@ -218,5 +214,5 @@ function editToken(context: InstancePreferencesContext, instance: InstanceConfig
         incrementCredentialRevision(context.settings);
         context.refresh();
     }));
-    dialog.present(context.window);
+    dialog.present(context.parent);
 }

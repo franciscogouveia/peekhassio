@@ -11,8 +11,8 @@ import { buildGroupViewModel } from './view-model.js';
 
 export interface GroupPreferencesContext {
     configuration: ConfigurationV1;
-    window: Adw.PreferencesWindow;
     manageEntities: (groupId: string) => void;
+    parent: Gtk.Widget;
     persist: (configuration: ConfigurationV1) => void;
     runAction: (action: () => void) => void;
 }
@@ -21,12 +21,8 @@ function messageFrom(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
 }
 
-export function buildGroupPreferencesPage(context: GroupPreferencesContext): Adw.PreferencesPage {
+export function buildGroupPreferencesGroup(context: GroupPreferencesContext): Adw.PreferencesGroup {
     const viewModel = buildGroupViewModel(context.configuration);
-    const page = new Adw.PreferencesPage({
-        title: _('Groups'),
-        icon_name: 'view-list-symbolic',
-    });
     const group = new Adw.PreferencesGroup({
         title: _('Display groups'),
         description: _('Groups appear in this order in the top bar.'),
@@ -68,8 +64,7 @@ export function buildGroupPreferencesPage(context: GroupPreferencesContext): Adw
         group.add(row);
     });
 
-    page.add(group);
-    return page;
+    return group;
 }
 
 function editGroup(context: GroupPreferencesContext, existing?: GroupConfiguration): void {
@@ -129,7 +124,7 @@ function editGroup(context: GroupPreferencesContext, existing?: GroupConfigurati
         if (response === 'save' && candidate !== null)
             context.persist(candidate);
     }));
-    dialog.present(context.window);
+    dialog.present(context.parent);
 }
 
 function deleteGroup(context: GroupPreferencesContext, group: GroupConfiguration): void {
@@ -145,7 +140,7 @@ function deleteGroup(context: GroupPreferencesContext, group: GroupConfiguration
         if (response === 'delete')
             context.persist(removeGroup(context.configuration, group.id));
     }));
-    dialog.present(context.window);
+    dialog.present(context.parent);
 }
 
 function moveDisplayGroup(context: GroupPreferencesContext, group: GroupConfiguration, direction: -1 | 1): void {
