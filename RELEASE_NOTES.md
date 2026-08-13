@@ -1,25 +1,26 @@
-# Peekhassio 1.0.3
+# Peekhassio 1.0.4
 
-Peekhassio 1.0.3 is a maintenance release of the feature-complete GNOME Shell
-extension for viewing selected Home Assistant entity states in the top bar.
+Peekhassio 1.0.4 is a corrective maintenance release of the feature-complete
+GNOME Shell extension for viewing selected Home Assistant entity states in the
+top bar.
 
-## Changes since 1.0.2
+## Changes since 1.0.3
 
-- Remove Peekhassio's dependency on the deprecated `Adw.PreferencesWindow`
-  API by returning a host-independent preferences widget.
-- Preserve separate Instances and Groups tabs with current Libadwaita view
-  switcher and view stack widgets.
-- Expand preferences content to use the available window width and height.
-- Present extension-owned preferences and alert dialogs relative to the
-  returned widget.
-- Add regression coverage that prevents the deprecated window-specific API
-  from being reintroduced.
+- Use the `fillPreferencesWindow()` entry point required for GNOME Shell 45+
+  and resolve EGO review warning `EGO-C45-001`.
+- Restore native `Adw.PreferencesPage` tabs managed by the GNOME preferences
+  host.
+- Preserve the active preferences tab when configuration changes rebuild its
+  contents, including when display groups are reordered.
+- Remove the custom view switcher, view stack, and nested scrolling layout.
+- Add regression coverage for the supported entry point, native tabs, and
+  active-tab preservation.
 
 ## Compatibility
 
 - GNOME Shell 50 only.
 - Configuration schema version 1.
-- No configuration migration is required from 1.0.0, 1.0.1, or 1.0.2.
+- No configuration migration is required from earlier 1.0 releases.
 
 ## Security and stored data
 
@@ -30,7 +31,7 @@ extension for viewing selected Home Assistant entity states in the top bar.
 
 ## Upgrade and rollback
 
-Install the 1.0.3 archive over the existing extension. To roll back, install a
+Install the 1.0.4 archive over the existing extension. To roll back, install a
 previously validated archive with configuration schema version 1. Secret
 Service tokens remain outside the extension archive.
 
@@ -44,13 +45,12 @@ Service tokens remain outside the extension archive.
 
 ## Acceptance evidence
 
-The preferences migration was accepted on GNOME Shell 50. Manual testing
-confirmed that both tabs open and switch correctly; instance, group, and entity
-operations work; preferences close and reopen safely; and rapid extension
-disable and re-enable cycles do not crash GNOME Shell. No JavaScript exception,
-critical message, or Peekhassio-specific error was observed. The remaining
-preferences-launch warnings came from GNOME Shell's deprecated preferences host;
-XKB and IBus messages were unrelated to Peekhassio.
+The preferences UI was manually exercised on GNOME Shell 50 during the 1.0.3
+cycle: native tabs, configuration operations, entity management, close and
+reopen behavior, and rapid extension disable and re-enable cycles worked
+without Peekhassio exceptions, critical messages, or crashes. The 1.0.4
+correction specifically addresses the EGO upload warning and the reported tab
+selection regression after reordering display groups.
 
 Automated type checking, linting, tests, coverage thresholds, clean packaging,
-and package import validation also pass for the release candidate.
+and package import validation pass for the release candidate.
