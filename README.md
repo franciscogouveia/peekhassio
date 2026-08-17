@@ -19,10 +19,6 @@ Create ordered top-bar groups containing the Home Assistant entities you want
 to monitor. Each group shows its name followed by the current entity values and
 units:
 
-```text
-[Bathroom 27°C 50%] [Living room 25°C 45%]
-```
-
 ![A Peekhassio group menu showing current sensor values](assets/screenshots/drop-down-sensor-data.png)
 
 Peekhassio supports:
