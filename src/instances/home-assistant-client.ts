@@ -98,7 +98,7 @@ export async function connectAuthenticated(
                     finish(new AuthenticationError('Home Assistant rejected the access token.'));
                 }
                 else if (value.type === 'auth_ok') {
-                    finish(undefined, value.homeAssistantVersion);
+                    finish(undefined, value.ha_version);
                 }
                 else {
                     throw new Error('Home Assistant sent an unexpected authentication message.');

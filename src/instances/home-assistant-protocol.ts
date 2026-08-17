@@ -4,7 +4,7 @@ interface AuthenticationRequiredMessage {
 
 interface AuthenticationAcceptedMessage {
     type: 'auth_ok';
-    homeAssistantVersion: string;
+    ha_version: string;
 }
 
 interface AuthenticationRejectedMessage {
@@ -16,47 +16,30 @@ export type AuthenticationMessage
         | AuthenticationAcceptedMessage
         | AuthenticationRejectedMessage;
 
-export interface HomeAssistantEntityState {
-    entityId: string;
-    state: string;
-    unit?: string;
-}
-
 interface FailedEntityCommandResult {
     type: 'result';
-    command: 'unexpected';
+    id: number;
     success: false;
 }
 
-interface SubscribeCommandResult {
+interface SuccessfulEntityCommandResult {
     type: 'result';
-    command: 'subscribe';
+    id: number;
     success: true;
+    result: unknown;
 }
 
-interface GetStatesCommandResult {
-    type: 'result';
-    command: 'get_states';
-    success: true;
-    states: HomeAssistantEntityState[];
-}
-
-interface UnexpectedCommandResult {
-    type: 'result';
-    command: 'unexpected';
-    success: true;
-}
-
-export type EntityCommandResult
-    = | FailedEntityCommandResult
-        | SubscribeCommandResult
-        | GetStatesCommandResult
-        | UnexpectedCommandResult;
+export type EntityCommandResult = FailedEntityCommandResult | SuccessfulEntityCommandResult;
 
 interface EntityStateChangedEvent {
     type: 'event';
-    entityId: string;
-    newState: HomeAssistantEntityState | null;
+    id: number;
+    event: {
+        data: {
+            entity_id: string;
+            new_state: unknown;
+        };
+    };
 }
 
 export type EntityMessage = EntityCommandResult | EntityStateChangedEvent;
@@ -86,42 +69,16 @@ export function parseAuthenticationMessage(message: string | null): Authenticati
     if (value.type === 'auth_invalid')
         return { type: 'auth_invalid' };
     if (value.type === 'auth_ok' && typeof value.ha_version === 'string')
-        return { type: 'auth_ok', homeAssistantVersion: value.ha_version };
+        return { type: 'auth_ok', ha_version: value.ha_version };
     throw new Error('Home Assistant sent an unexpected authentication message.');
-}
-
-function parseEntityState(value: unknown): HomeAssistantEntityState {
-    if (!isRecord(value) || typeof value.entity_id !== 'string' || typeof value.state !== 'string'
-        || !isRecord(value.attributes))
-        throw new Error('Home Assistant sent malformed entity state.');
-    const unit = value.attributes.unit_of_measurement;
-    if (unit !== undefined && unit !== null && typeof unit !== 'string')
-        throw new Error('Home Assistant sent malformed entity state.');
-    return {
-        entityId: value.entity_id,
-        state: value.state,
-        ...(typeof unit === 'string' ? { unit } : {}),
-    };
 }
 
 function parseCommandResult(value: Record<string, unknown>): EntityCommandResult {
     if (typeof value.id !== 'number' || typeof value.success !== 'boolean')
         throw new Error('Home Assistant sent malformed entity data.');
     if (!value.success)
-        return { type: 'result', command: 'unexpected', success: false };
-    if (value.id === 1)
-        return { type: 'result', command: 'subscribe', success: true };
-    if (value.id === 2) {
-        if (!Array.isArray(value.result))
-            throw new Error('Home Assistant sent malformed entity state.');
-        return {
-            type: 'result',
-            command: 'get_states',
-            success: true,
-            states: value.result.map(parseEntityState),
-        };
-    }
-    return { type: 'result', command: 'unexpected', success: true };
+        return { type: 'result', id: value.id, success: false };
+    return { type: 'result', id: value.id, success: true, result: value.result };
 }
 
 function parseStateChangedEvent(value: Record<string, unknown>): EntityStateChangedEvent {
@@ -131,8 +88,13 @@ function parseStateChangedEvent(value: Record<string, unknown>): EntityStateChan
     const newState = value.event.data.new_state;
     return {
         type: 'event',
-        entityId: value.event.data.entity_id,
-        newState: newState === null ? null : parseEntityState(newState),
+        id: value.id,
+        event: {
+            data: {
+                entity_id: value.event.data.entity_id,
+                new_state: newState,
+            },
+        },
     };
 }
 

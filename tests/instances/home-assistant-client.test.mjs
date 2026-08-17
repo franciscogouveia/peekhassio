@@ -208,10 +208,19 @@ test('loads ordered states, buffers events, filters entities, and applies units'
         event: { data: { entity_id: 'sensor.unconfigured', new_state: state('sensor.unconfigured', 'on') } },
     }));
     connection.receive(JSON.stringify({
+        id: 1,
+        type: 'event',
+        event: { data: { entity_id: 'sensor.unconfigured', new_state: { invalid: true } } },
+    }));
+    connection.receive(JSON.stringify({
         id: 2,
         type: 'result',
         success: true,
-        result: [state('sensor.temperature', '70', '°C'), state('sensor.humidity', 'unknown', '%')],
+        result: [
+            state('sensor.temperature', '70', '°C'),
+            state('sensor.humidity', 'unknown', '%'),
+            { entity_id: 'sensor.unconfigured', invalid: true },
+        ],
     }));
     connection.receive(JSON.stringify({ id: 1, type: 'result', success: true, result: null }));
 
@@ -247,6 +256,7 @@ test('loads ordered states, buffers events, filters entities, and applies units'
         availability: 'missing',
         receivedAt: 1003,
     });
+    assert.deepEqual(subscription.errors, []);
     result.stop();
     assert.equal(connection.messageCallbacks.size, 0);
 });
@@ -255,6 +265,7 @@ test('reports initialization and active subscription failures without remote det
     for (const message of [
         null,
         '{',
+        '{"id":1,"type":"result","success":false,"error":{"message":"private state"}}',
         '{"id":2,"type":"result","success":false,"error":{"message":"private state"}}',
         '{"id":2,"type":"result","success":true,"result":{}}',
         '{"id":9,"type":"result","success":true,"result":null}',
@@ -275,6 +286,31 @@ test('reports initialization and active subscription failures without remote det
     await active.promise;
     connection.receive('{"id":1,"type":"event","event":{"data":{"entity_id":7}}}');
     assert.match(active.errors[0].message, /malformed entity event/);
+    assert.equal(connection.messageCallbacks.size, 0);
+});
+
+test('rejects malformed configured states and mismatched event entity IDs', async () => {
+    for (const message of [
+        '{"id":2,"type":"result","success":true,"result":[{"entity_id":"sensor.temperature","state":7,"attributes":{}}]}',
+        '{"id":2,"type":"result","success":true,"result":[{"entity_id":"sensor.temperature","state":"70","attributes":{"unit_of_measurement":7}}]}',
+    ]) {
+        const connection = new FakeConnection();
+        const subscription = subscribe(connection);
+        connection.receive(message);
+        await assert.rejects(subscription.promise, /malformed entity state/);
+    }
+
+    const connection = new FakeConnection();
+    const active = subscribe(connection);
+    connection.receive('{"id":2,"type":"result","success":true,"result":[]}');
+    connection.receive('{"id":1,"type":"result","success":true,"result":null}');
+    await active.promise;
+    connection.receive(JSON.stringify({
+        id: 1,
+        type: 'event',
+        event: { data: { entity_id: 'sensor.humidity', new_state: state('sensor.temperature', '70', '°C') } },
+    }));
+    assert.match(active.errors[0].message, /malformed entity state/);
     assert.equal(connection.messageCallbacks.size, 0);
 });
 
