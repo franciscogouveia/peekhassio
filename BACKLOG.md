@@ -13,6 +13,18 @@ and repeated enable/disable behavior.
 
 ## Post-release engineering
 
+### Isolate malformed entity states
+
+- Keep valid entities updating when one configured entity has a malformed state.
+- Leave malformed initial states as missing and retain the last valid state when
+  a later event is malformed.
+- Add a non-fatal, redacted warning path that does not stop the subscription or
+  trigger a reconnect.
+- Continue treating malformed message envelopes, rejected commands, invalid
+  result collections, and connection failures as fatal.
+- Cover mixed valid and malformed snapshots, malformed events followed by valid
+  updates, warning behavior, and continued subscription cleanup.
+
 ### Improve automated native integration testing
 
 - Evaluate a GJS/libsoup integration suite using a deterministic mocked Home
