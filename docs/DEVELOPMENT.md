@@ -69,16 +69,23 @@ gnome-extensions prefs peekhassio@de-gouveia.eu
 Peekhassio needs access to Secret Service to store Home Assistant tokens. Secret
 Service starts locked in the nested session, so trigger its unlock prompt by
 opening an instance in Peekhassio preferences and trying to save a token. After
-you authenticate, Peekhassio can access the stored token.
-
-The session may also use a different or temporary dconf environment, so use a
-normal GNOME session for persistence acceptance testing.
+you authenticate, Peekhassio can access the stored tokens.
 
 ### Manual test checklist
 
-Exercise enable, disable, re-enable, configuration edits, and credential
-replacement after live values appear. Treat Shell warnings, critical messages,
-or coredumps as failures.
+- Enable Peekhassio and confirm that each configured group appears once in the
+  top bar and begins showing Home Assistant values.
+- Disable Peekhassio and confirm that all its groups disappear. This checks that
+  the extension removes its widgets and stops its background work.
+- Re-enable Peekhassio and confirm that the groups and live values return
+  without duplicates. This checks that the previous run did not leave widgets,
+  connections, timers, or signal handlers behind.
+- Add, edit, reorder, and remove groups and entities in preferences. Confirm
+  that the top bar updates immediately and preserves the configured order.
+- After live values appear, replace an instance's token and confirm that
+  Peekhassio reconnects and resumes updates with the new credential.
+- Review the Shell logs while performing these checks. Treat warnings, critical
+  messages, or coredumps as failures.
 
 ## Debugging
 
