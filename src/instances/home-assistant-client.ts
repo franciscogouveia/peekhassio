@@ -1,3 +1,5 @@
+import { parseAuthenticationMessage } from './home-assistant-protocol.js';
+
 export interface Cancellation {
     isCancelled(): boolean;
     onCancel(callback: () => void): () => void;
@@ -29,21 +31,6 @@ export interface AuthenticatedSession {
 }
 
 export class AuthenticationError extends Error {}
-
-function parseMessage(message: string | null): Record<string, unknown> {
-    if (message === null)
-        throw new Error('Home Assistant sent a binary authentication message.');
-    let value: unknown;
-    try {
-        value = JSON.parse(message);
-    }
-    catch {
-        throw new Error('Home Assistant sent malformed authentication data.');
-    }
-    if (value === null || typeof value !== 'object' || Array.isArray(value))
-        throw new Error('Home Assistant sent malformed authentication data.');
-    return value as Record<string, unknown>;
-}
 
 export async function connectAuthenticated(
     transport: WebSocketTransport,
@@ -100,7 +87,7 @@ export async function connectAuthenticated(
         ), undefined, false)));
         cleanupCallbacks.push(connection.onMessage((message) => {
             try {
-                const value = parseMessage(message);
+                const value = parseAuthenticationMessage(message);
                 if (phase === 'required') {
                     if (value.type !== 'auth_required')
                         throw new Error('Home Assistant sent an unexpected authentication message.');
@@ -110,7 +97,7 @@ export async function connectAuthenticated(
                 else if (value.type === 'auth_invalid') {
                     finish(new AuthenticationError('Home Assistant rejected the access token.'));
                 }
-                else if (value.type === 'auth_ok' && typeof value.ha_version === 'string') {
+                else if (value.type === 'auth_ok') {
                     finish(undefined, value.ha_version);
                 }
                 else {

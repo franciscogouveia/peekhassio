@@ -4,6 +4,10 @@ import type {
     Scheduler,
     WebSocketConnection,
 } from '../instances/home-assistant-client.js';
+import {
+    type EntityCommandResult,
+    parseEntityMessage,
+} from '../instances/home-assistant-protocol.js';
 
 export type EntityAvailability = 'available' | 'missing' | 'unavailable' | 'unknown';
 
@@ -23,20 +27,6 @@ export interface EntitySubscription {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
-function parseMessage(message: string | null): Record<string, unknown> {
-    if (message === null)
-        throw new Error('Home Assistant sent binary entity data.');
-    try {
-        const value: unknown = JSON.parse(message);
-        if (isRecord(value))
-            return value;
-    }
-    catch {
-        // Report one fixed error without exposing remote content.
-    }
-    throw new Error('Home Assistant sent malformed entity data.');
 }
 
 function parseState(value: unknown, configured: EntityConfiguration, receivedAt: number): EntityState {
@@ -116,16 +106,10 @@ export function subscribeEntityStates(
             ready = true;
             resolve({ states: result, stop });
         };
-        const applyEvent = (event: Record<string, unknown>): void => {
-            if (!isRecord(event.event) || !isRecord(event.event.data))
-                throw new Error('Home Assistant sent malformed entity event.');
-            const entityId = event.event.data.entity_id;
-            if (typeof entityId !== 'string')
-                throw new Error('Home Assistant sent malformed entity event.');
+        const applyEvent = (entityId: string, newState: unknown): void => {
             if (!configured.has(entityId))
                 return;
             const configuration = configured.get(entityId)!;
-            const newState = event.event.data.new_state;
             const receivedAt = now();
             const state = newState === null
                 ? { ...missingState(entityId), receivedAt }
@@ -137,7 +121,7 @@ export function subscribeEntityStates(
                 onUpdate(orderedStates());
             }
         };
-        const handleResult = (message: Record<string, unknown>): void => {
+        const handleResult = (message: EntityCommandResult): void => {
             if (message.success !== true)
                 throw new Error('Home Assistant rejected an entity command.');
             if (message.id === 1) {
@@ -174,11 +158,11 @@ export function subscribeEntityStates(
         ))));
         cleanupCallbacks.push(connection.onMessage((text) => {
             try {
-                const message = parseMessage(text);
+                const message = parseEntityMessage(text);
                 if (message.type === 'result')
                     handleResult(message);
-                else if (message.type === 'event' && message.id === 1)
-                    applyEvent(message);
+                else if (message.type === 'event')
+                    applyEvent(message.event.data.entity_id, message.event.data.new_state);
                 else
                     throw new Error('Home Assistant sent an unexpected entity message.');
             }
