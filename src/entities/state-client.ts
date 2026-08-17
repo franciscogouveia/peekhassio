@@ -33,12 +33,12 @@ function parseState(value: unknown, configured: EntityConfiguration, receivedAt:
     if (!isRecord(value) || value.entity_id !== configured.entityId || typeof value.state !== 'string'
         || !isRecord(value.attributes))
         throw new Error('Home Assistant sent malformed entity state.');
-    const reportedUnit = value.attributes.unit_of_measurement;
-    if (reportedUnit !== undefined && reportedUnit !== null && typeof reportedUnit !== 'string')
-        throw new Error('Home Assistant sent malformed entity state.');
     const availability = value.state === 'unknown' || value.state === 'unavailable'
         ? value.state
         : 'available';
+    const reportedUnit = value.attributes.unit_of_measurement;
+    if (reportedUnit !== undefined && reportedUnit !== null && typeof reportedUnit !== 'string')
+        throw new Error('Home Assistant sent malformed entity state.');
     const unit = configured.unitOverride ?? reportedUnit;
     return {
         entityId: configured.entityId,

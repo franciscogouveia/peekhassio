@@ -16,20 +16,12 @@ export type AuthenticationMessage
         | AuthenticationAcceptedMessage
         | AuthenticationRejectedMessage;
 
-interface FailedEntityCommandResult {
+export interface EntityCommandResult {
     type: 'result';
     id: number;
-    success: false;
+    success: boolean;
+    result?: unknown;
 }
-
-interface SuccessfulEntityCommandResult {
-    type: 'result';
-    id: number;
-    success: true;
-    result: unknown;
-}
-
-export type EntityCommandResult = FailedEntityCommandResult | SuccessfulEntityCommandResult;
 
 interface EntityStateChangedEvent {
     type: 'event';
@@ -37,7 +29,7 @@ interface EntityStateChangedEvent {
     event: {
         data: {
             entity_id: string;
-            new_state: unknown;
+            new_state?: unknown;
         };
     };
 }
@@ -76,26 +68,14 @@ export function parseAuthenticationMessage(message: string | null): Authenticati
 function parseCommandResult(value: Record<string, unknown>): EntityCommandResult {
     if (typeof value.id !== 'number' || typeof value.success !== 'boolean')
         throw new Error('Home Assistant sent malformed entity data.');
-    if (!value.success)
-        return { type: 'result', id: value.id, success: false };
-    return { type: 'result', id: value.id, success: true, result: value.result };
+    return value as unknown as EntityCommandResult;
 }
 
 function parseStateChangedEvent(value: Record<string, unknown>): EntityStateChangedEvent {
     if (value.id !== 1 || !isRecord(value.event) || !isRecord(value.event.data)
         || typeof value.event.data.entity_id !== 'string')
         throw new Error('Home Assistant sent malformed entity event.');
-    const newState = value.event.data.new_state;
-    return {
-        type: 'event',
-        id: value.id,
-        event: {
-            data: {
-                entity_id: value.event.data.entity_id,
-                new_state: newState,
-            },
-        },
-    };
+    return value as unknown as EntityStateChangedEvent;
 }
 
 export function parseEntityMessage(message: string | null): EntityMessage {
