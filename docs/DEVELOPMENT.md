@@ -40,11 +40,12 @@ GNOME 50 Wayland session:
 ```sh
 npm run install:extension
 dbus-run-session -- bash -c '
-    keyring_dir=$(mktemp -d "${XDG_RUNTIME_DIR:-/tmp}/peekhassio-keyring.XXXXXX")
+    secret_service_control_dir=$(mktemp -d \
+        "${XDG_RUNTIME_DIR:-/tmp}/peekhassio-secret-service.XXXXXX")
     gnome-keyring-daemon \
         --foreground \
         --components=secrets \
-        --control-directory="$keyring_dir" &
+        --control-directory="$secret_service_control_dir" &
     keyring_pid=$!
 
     trap "kill $keyring_pid 2>/dev/null" EXIT
@@ -65,12 +66,10 @@ gnome-extensions enable peekhassio@de-gouveia.eu
 gnome-extensions prefs peekhassio@de-gouveia.eu
 ```
 
-The command starts a Secret Service provider on the nested session's D-Bus.
-The temporary control directory contains daemon communication sockets; it does
-not create a separate keyring database. Secret Service may initially be locked
-and request authentication when Peekhassio first stores a token. Once unlocked,
-the nested session may have access to the host user's existing keyring entries.
-Use test credentials and avoid modifying unrelated secrets.
+Peekhassio needs access to Secret Service to store Home Assistant tokens. Secret
+Service starts locked in the nested session, so trigger its unlock prompt by
+opening an instance in Peekhassio preferences and trying to save a token. After
+you authenticate, Peekhassio can access the stored token.
 
 The session may also use a different or temporary dconf environment, so use a
 normal GNOME session for persistence acceptance testing.
