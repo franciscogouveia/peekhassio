@@ -34,34 +34,39 @@ JavaScript is written to `dist/`; `npm run package` creates
 
 ## GNOME Shell integration testing
 
-Test authenticated Shell integration in a nested GNOME 50 Wayland session with
-a dedicated Secret Service provider:
+Build and install the extension for the current user before starting the nested
+GNOME 50 Wayland session:
 
 ```sh
-dbus-run-session -- bash -c '
-    keyring_dir=$(mktemp -d "${XDG_RUNTIME_DIR:-/tmp}/peekhassio-keyring.XXXXXX")
-    gnome-keyring-daemon \
-        --foreground \
-        --components=secrets \
-        --control-directory="$keyring_dir" &
-    keyring_pid=$!
-
-    trap "kill $keyring_pid 2>/dev/null" EXIT
-
-    gnome-shell --devkit --wayland
-'
+npm run install:extension
+dbus-run-session gnome-shell --devkit --wayland
 ```
 
-The dedicated keyring makes token storage available inside the isolated D-Bus
-session; it does not expose tokens from the normal desktop session. Configure
-test credentials through the nested session's preferences. The session may
-also use a different or temporary dconf environment, so persistent devkit
-configuration behavior remains under investigation. Use a normal GNOME session
-for persistence acceptance testing.
+The extension remains installed in the current user's extension directory. The
+nested session provides a separate Shell process in which to run it, so an
+extension failure does not take down the host Shell session.
 
-Before merging runtime changes, manually exercise enable, disable, re-enable,
-configuration edits, and credential replacement after live values appear.
-Treat Shell warnings, critical messages, or coredumps as failures.
+Open a terminal inside the nested session, then enable the installed extension
+and open its preferences:
+
+```sh
+gnome-extensions enable peekhassio@de-gouveia.eu
+gnome-extensions prefs peekhassio@de-gouveia.eu
+```
+
+Do not assume the nested session has an isolated keyring. Secret Service may
+initially be locked and request authentication when Peekhassio first stores a
+token. Once unlocked, the session may have access to the host user's existing
+keyring entries. Use test credentials and avoid modifying unrelated secrets.
+
+The session may also use a different or temporary dconf environment, so use a
+normal GNOME session for persistence acceptance testing.
+
+### Manual test checklist
+
+Exercise enable, disable, re-enable, configuration edits, and credential
+replacement after live values appear. Treat Shell warnings, critical messages,
+or coredumps as failures.
 
 ## Debugging
 
