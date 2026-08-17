@@ -75,11 +75,23 @@ you authenticate, Peekhassio can access the stored tokens.
 
 - Enable Peekhassio and confirm that each configured group appears once in the
   top bar and begins showing Home Assistant values.
-- Disable Peekhassio and confirm that all its groups disappear. This checks that
-  the extension removes its widgets and stops its background work.
+- Disable Peekhassio and confirm that all its groups disappear from the top bar.
+  This checks that the extension removes its widgets and stops its background
+  work.
 - Re-enable Peekhassio and confirm that the groups and live values return
-  without duplicates. This checks that the previous run did not leave widgets,
-  connections, timers, or signal handlers behind.
+  to the top bar without duplicates. This checks that the previous run did not
+  leave widgets, connections, timers, or signal handlers behind.
+- Rapidly enable, disable, and re-enable Peekhassio without waiting for values
+  to load. Confirm that GNOME Shell does not crash and that each top-bar group
+  appears only once. This tests whether dangling signals or unfinished work
+  from the first run affect the new one.
+
+  ```sh
+  gnome-extensions enable peekhassio@de-gouveia.eu
+  gnome-extensions disable peekhassio@de-gouveia.eu
+  gnome-extensions enable peekhassio@de-gouveia.eu
+  ```
+
 - Add, edit, reorder, and remove groups and entities in preferences. Confirm
   that the top bar updates immediately and preserves the configured order.
 - After live values appear, replace an instance's token and confirm that
