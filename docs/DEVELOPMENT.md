@@ -1,8 +1,8 @@
 # Peekhassio development
 
-This guide covers the source layout, local validation, GNOME Shell integration
-testing, and debugging workflows. For the product overview, installation, and
-configuration instructions, see the [README](../README.md).
+This guide covers local validation, GNOME Shell integration testing, and
+debugging workflows. For the product overview, installation, and configuration
+instructions, see the [README](../README.md).
 
 ## Prerequisites
 
@@ -15,29 +15,6 @@ Install the exact dependencies recorded in the lockfile:
 ```sh
 npm ci
 ```
-
-## Source architecture
-
-Source modules are organized by feature and named for their architectural
-role:
-
-- `configuration.ts` defines domain validation and immutable model changes.
-- `view-model.ts` derives presentation-only state without creating widgets.
-- `preferences-view.ts` creates GTK/Adwaita widgets and binds their native
-  signals to feature actions.
-- `prefs.ts` is the preferences entry point and coordinator for storage,
-  navigation, recovery, and shared error handling.
-- `panel-view-model.ts` derives the top-bar and menu presentation state.
-- `panel-shell-view.ts` creates the Shell widgets and binds their native
-  signals.
-- `panel-controller.ts` owns panel reconciliation, actions, and widget
-  lifecycle.
-- `extension.ts` and `runtime/` coordinate the Shell process; panel modules
-  remain under `groups/` and never import preferences-process libraries.
-
-This is a feature-oriented separation of model, view model, view, and
-coordination responsibilities, not a claim that every feature implements a
-formal MVC framework.
 
 ## Build and validation
 
@@ -54,13 +31,6 @@ npm run package
 Aggregate line, branch, and function coverage must remain above 80%. Generated
 JavaScript is written to `dist/`; `npm run package` creates
 `peekhassio@de-gouveia.eu.shell-extension.zip`.
-
-Tags mirrored to GitHub trigger the GitHub Actions release workflow. It runs the
-complete Node and GJS checks, packages the tagged commit, analyzes the archive
-with a pinned Shexli version, creates a SHA-256 checksum, and publishes both
-files in a GitHub Release. Rerunning the workflow replaces the existing release
-assets instead of creating a duplicate release. The workflow can also be run
-manually to validate checks, packaging, and Shexli without publishing a release.
 
 ## GNOME Shell integration testing
 
