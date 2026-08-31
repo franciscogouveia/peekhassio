@@ -137,16 +137,31 @@ export class GioCancellation implements Cancellation {
 }
 
 export class GLibScheduler {
+    readonly #sources = new Set<number>();
+    #destroyed = false;
+
     schedule(milliseconds: number, callback: () => void): () => void {
+        if (this.#destroyed)
+            throw new Error('Cannot schedule a timeout after the scheduler is destroyed.');
         let source = GLib.timeout_add(GLib.PRIORITY_DEFAULT, milliseconds, () => {
+            this.#sources.delete(source);
             source = 0;
             callback();
             return GLib.SOURCE_REMOVE;
         });
+        this.#sources.add(source);
         return () => {
-            if (source !== 0)
+            if (source !== 0) {
                 GLib.source_remove(source);
+                this.#sources.delete(source);
+            }
             source = 0;
         };
+    }
+
+    destroy(): void {
+        this.#destroyed = true;
+        this.#sources.forEach(source => GLib.source_remove(source));
+        this.#sources.clear();
     }
 }

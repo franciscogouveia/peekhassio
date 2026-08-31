@@ -19,12 +19,15 @@ const CONNECTION_TIMEOUT_MILLISECONDS = 10_000;
 
 export default class PeekhassioExtension extends Extension {
     #runtime: ExtensionRuntime | null = null;
+    #scheduler: GLibScheduler | null = null;
 
     enable(): void {
+        this.#scheduler?.destroy();
         const settings = this.getSettings();
         const store = new ConfigurationStore(settings);
         const credentials = new CredentialStore(new SecretServiceBackend());
         const scheduler = new GLibScheduler();
+        this.#scheduler = scheduler;
         const transport = new SoupWebSocketTransport();
         const panel = new PanelController(new ShellPanelWidgetFactory({
             openDashboard: (url) => {
@@ -66,8 +69,14 @@ export default class PeekhassioExtension extends Extension {
     }
 
     disable(): void {
-        this.#runtime?.disable();
-        this.#runtime = null;
+        try {
+            this.#runtime?.disable();
+        }
+        finally {
+            this.#runtime = null;
+            this.#scheduler?.destroy();
+            this.#scheduler = null;
+        }
     }
 
     #reportError(error: unknown, instanceId?: string): void {
