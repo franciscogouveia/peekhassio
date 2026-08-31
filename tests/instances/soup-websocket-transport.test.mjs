@@ -1,9 +1,10 @@
 /* global imports */
 
 import System from 'system';
+import GLib from 'gi://GLib';
 import Soup from 'gi://Soup?version=3.0';
 
-import { GioCancellation, SoupConnection } from '../../dist/instances/soup-websocket-transport.js';
+import { GioCancellation, GLibScheduler, SoupConnection } from '../../dist/instances/soup-websocket-transport.js';
 
 const JsUnit = imports.jsUnit;
 
@@ -47,6 +48,42 @@ class FakeWebSocketConnection {
 }
 
 const tests = {
+    testCancellationRemovesScheduledTimeoutAndIsIdempotent() {
+        const scheduler = new GLibScheduler();
+        let calls = 0;
+        const cancel = scheduler.schedule(0, () => calls++);
+
+        cancel();
+        cancel();
+        while (GLib.MainContext.default().iteration(false));
+
+        JsUnit.assertEquals(0, calls);
+        scheduler.destroy();
+    },
+
+    testDestroyRemovesAllScheduledTimeoutsAndIsIdempotent() {
+        const scheduler = new GLibScheduler();
+        let calls = 0;
+        scheduler.schedule(0, () => calls++);
+        scheduler.schedule(0, () => calls++);
+
+        scheduler.destroy();
+        scheduler.destroy();
+        while (GLib.MainContext.default().iteration(false));
+
+        JsUnit.assertEquals(0, calls);
+    },
+
+    testRejectsSchedulingAfterDestroy() {
+        const scheduler = new GLibScheduler();
+
+        scheduler.destroy();
+
+        let calls = 0;
+        JsUnit.assertRaises(() => scheduler.schedule(0, () => calls++));
+        JsUnit.assertEquals(0, calls);
+    },
+
     testDisconnectsCancellationHandlerReentrantlyWithoutDeadlock() {
         const cancellation = new GioCancellation();
         let calls = 0;
