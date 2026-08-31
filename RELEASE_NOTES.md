@@ -1,20 +1,21 @@
-# Peekhassio 1.0.4
+# Peekhassio 1.0.5
 
-Peekhassio 1.0.4 is a corrective maintenance release of the feature-complete
+Peekhassio 1.0.5 is a corrective maintenance release of the feature-complete
 GNOME Shell extension for viewing selected Home Assistant entity states in the
 top bar.
 
-## Changes since 1.0.3
+## Changes since 1.0.4
 
-- Use the `fillPreferencesWindow()` entry point required for GNOME Shell 45+
-  and resolve EGO review warning `EGO-C45-001`.
-- Restore native `Adw.PreferencesPage` tabs managed by the GNOME preferences
-  host.
-- Preserve the active preferences tab when configuration changes rebuild its
-  contents, including when display groups are reordered.
-- Remove the custom view switcher, view stack, and nested scrolling layout.
-- Add regression coverage for the supported entry point, native tabs, and
-  active-tab preservation.
+- Remove the version query from the Soup runtime import in response to GNOME
+  Extensions review feedback.
+- Track every active GLib timeout source and remove outstanding sources during
+  extension disable and before replacing the scheduler on enable.
+- Add focused GJS coverage for timeout cancellation, scheduler destruction,
+  and attempts to schedule work after destruction.
+- Validate Home Assistant protocol messages before passing them to connection
+  and entity-state consumers.
+- Split contributor documentation into a focused development guide and record
+  follow-up work for resilient entity-state parsing.
 
 ## Compatibility
 
@@ -31,7 +32,7 @@ top bar.
 
 ## Upgrade and rollback
 
-Install the 1.0.4 archive over the existing extension. To roll back, install a
+Install the 1.0.5 archive over the existing extension. To roll back, install a
 previously validated archive with configuration schema version 1. Secret
 Service tokens remain outside the extension archive.
 
@@ -45,12 +46,12 @@ Service tokens remain outside the extension archive.
 
 ## Acceptance evidence
 
-The preferences UI was manually exercised on GNOME Shell 50 during the 1.0.3
-cycle: native tabs, configuration operations, entity management, close and
-reopen behavior, and rapid extension disable and re-enable cycles worked
-without Peekhassio exceptions, critical messages, or crashes. The 1.0.4
-correction specifically addresses the EGO upload warning and the reported tab
-selection regression after reordering display groups.
+The preferences UI and extension lifecycle were manually exercised on GNOME
+Shell 50 during the 1.0.4 cycle: native tabs, configuration operations, entity
+management, close and reopen behavior, and rapid extension disable and
+re-enable cycles worked without Peekhassio exceptions, critical messages, or
+crashes. The 1.0.5 corrections specifically address the Soup import and timeout
+ownership feedback from GNOME Extensions review.
 
 Automated type checking, linting, tests, coverage thresholds, clean packaging,
 and package import validation pass for the release candidate.
