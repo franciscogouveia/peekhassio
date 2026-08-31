@@ -48,20 +48,40 @@ class FakeWebSocketConnection {
 }
 
 const tests = {
-    testRemovesScheduledTimeoutsOnCancellationAndDestroy() {
+    testCancellationRemovesScheduledTimeoutAndIsIdempotent() {
         const scheduler = new GLibScheduler();
         let calls = 0;
         const cancel = scheduler.schedule(0, () => calls++);
-        scheduler.schedule(0, () => calls++);
 
         cancel();
         cancel();
+        while (GLib.MainContext.default().iteration(false));
+
+        JsUnit.assertEquals(0, calls);
+        scheduler.destroy();
+    },
+
+    testDestroyRemovesAllScheduledTimeoutsAndIsIdempotent() {
+        const scheduler = new GLibScheduler();
+        let calls = 0;
+        scheduler.schedule(0, () => calls++);
+        scheduler.schedule(0, () => calls++);
+
         scheduler.destroy();
         scheduler.destroy();
         while (GLib.MainContext.default().iteration(false));
 
         JsUnit.assertEquals(0, calls);
+    },
+
+    testRejectsSchedulingAfterDestroy() {
+        const scheduler = new GLibScheduler();
+
+        scheduler.destroy();
+
+        let calls = 0;
         JsUnit.assertRaises(() => scheduler.schedule(0, () => calls++));
+        JsUnit.assertEquals(0, calls);
     },
 
     testDisconnectsCancellationHandlerReentrantlyWithoutDeadlock() {
