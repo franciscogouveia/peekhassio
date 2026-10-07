@@ -9,6 +9,8 @@ The name combines “peek” with “Hassio,” while sounding like “Picasso.�
 Peekhassio 1.0.5 is feature-complete. It targets and has been manually tested
 with GNOME Shell 50 only.
 
+![Peekhassio high level presentation](assets/marketing/product-intro.png)
+
 This GitHub repository is a public mirror of Peekhassio's source code. Report
 bugs and feature requests by leaving a comment on Peekhassio's page on
 [GNOME Shell Extensions](https://extensions.gnome.org/).
