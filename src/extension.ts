@@ -69,14 +69,10 @@ export default class PeekhassioExtension extends Extension {
     }
 
     disable(): void {
-        try {
-            this.#runtime?.disable();
-        }
-        finally {
-            this.#runtime = null;
-            this.#scheduler?.destroy();
-            this.#scheduler = null;
-        }
+        this.#runtime?.disable();
+        this.#runtime = null;
+        this.#scheduler?.destroy();
+        this.#scheduler = null;
     }
 
     #reportError(error: unknown, instanceId?: string): void {
